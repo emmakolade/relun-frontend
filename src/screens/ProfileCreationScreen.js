@@ -200,6 +200,12 @@ export default function ProfileCreationScreen({ navigation, route }) {
                 <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
               )}
             </TouchableOpacity>
+            <View style={styles.warningContainer}>
+              <Ionicons name="warning-outline" size={16} color={COLORS.warning} />
+              <Text style={styles.warningText}>
+                Your date of birth can only be set once and cannot be changed later
+              </Text>
+            </View>
           </View>
 
           {/* Date Picker Modal for iOS */}
@@ -430,6 +436,20 @@ const styles = StyleSheet.create({
   },
   placeholderText: {
     color: COLORS.textLight,
+  },
+  warningContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingHorizontal: 4,
+    gap: 8,
+  },
+  warningText: {
+    flex: 1,
+    fontSize: SIZES.body3,
+    fontFamily: FONTS.regular,
+    color: COLORS.warning,
+    lineHeight: 18,
   },
   modalOverlay: {
     flex: 1,

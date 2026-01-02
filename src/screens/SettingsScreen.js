@@ -84,17 +84,17 @@ export default function SettingsScreen({ navigation, route }) {
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Age</Text>
-            <View style={styles.inputContainer}>
+            <View style={[styles.inputContainer, styles.disabledContainer]}>
               <TextInput
-                style={styles.input}
+                style={[styles.input, styles.disabledInput]}
                 value={age}
-                onChangeText={setAge}
                 placeholder="Enter your age"
                 placeholderTextColor={COLORS.textLight}
-                keyboardType="number-pad"
-                maxLength={2}
+                editable={false}
               />
+              <Ionicons name="lock-closed" size={16} color={COLORS.textLight} />
             </View>
+            <Text style={styles.helperText}>Age cannot be changed</Text>
           </View>
 
           <View style={styles.inputGroup}>
@@ -294,6 +294,20 @@ const styles = StyleSheet.create({
     color: COLORS.textLight,
     textAlign: 'right',
     marginTop: 4,
+  },
+  disabledContainer: {
+    backgroundColor: COLORS.backgroundLight,
+    opacity: 0.7,
+  },
+  disabledInput: {
+    color: COLORS.textSecondary,
+  },
+  helperText: {
+    fontSize: SIZES.body3,
+    fontFamily: FONTS.regular,
+    color: COLORS.textLight,
+    marginTop: 4,
+    marginLeft: 4,
   },
   saveButton: {
     backgroundColor: COLORS.primary,
