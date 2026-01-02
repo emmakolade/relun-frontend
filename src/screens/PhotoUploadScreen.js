@@ -39,7 +39,7 @@ export default function PhotoUploadScreen({ navigation }) {
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [3, 4],
         quality: 0.8,
@@ -88,27 +88,24 @@ export default function PhotoUploadScreen({ navigation }) {
 
   const handleFinish = async () => {
     if (isValid) {
-      await AsyncStorage.setItem('userPhotos', JSON.stringify(photos));
-      await AsyncStorage.setItem('userLocation', JSON.stringify(location));
-      await AsyncStorage.setItem('hasProfile', 'true');
-      await AsyncStorage.setItem('userToken', 'demo-token');
-      
-      // Show success message and reload
-      Alert.alert(
-        'Success!',
-        'Your profile is complete. The app will now reload.',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              // Force navigation to trigger app state refresh
-              navigation.navigate('Welcome');
-              // The AppState listener in App.js will detect the change
-              setTimeout(() => checkLoginStatus(), 100);
-            },
-          },
-        ]
-      );
+      try {
+        await AsyncStorage.setItem('userPhotos', JSON.stringify(photos));
+        await AsyncStorage.setItem('userLocation', JSON.stringify(location));
+        await AsyncStorage.setItem('hasProfile', 'true');
+        await AsyncStorage.setItem('userToken', 'demo-token');
+        
+        // App.js interval will detect the token and automatically show Main navigator (Swipe screen)
+        // Just stay on current screen or navigate to Welcome - the interval will handle the rest
+        navigation.dispatch(
+          CommonActions.reset({
+            index: 0,
+            routes: [{ name: 'Welcome' }],
+          })
+        );
+      } catch (error) {
+        console.error('Error completing profile:', error);
+        Alert.alert('Error', 'Failed to complete profile. Please try again.');
+      }
     }
   };
 

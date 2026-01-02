@@ -47,6 +47,7 @@ const Stack = createStackNavigator();
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   let [fontsLoaded] = useFonts({
     Poppins_400Regular,
@@ -66,10 +67,16 @@ export default function App() {
       }
     });
 
+    // Check login status periodically in development
+    const interval = setInterval(() => {
+      checkLoginStatus();
+    }, 1000);
+
     return () => {
       subscription?.remove();
+      clearInterval(interval);
     };
-  }, []);
+  }, [refreshKey]);
 
   const checkLoginStatus = async () => {
     try {

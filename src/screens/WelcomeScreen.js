@@ -1,10 +1,32 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, StatusBar } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { CommonActions } from '@react-navigation/native';
 
 export default function WelcomeScreen({ navigation }) {
+  useEffect(() => {
+    // Check if user is already logged in when screen mounts
+    checkIfLoggedIn();
+  }, []);
+
+  const checkIfLoggedIn = async () => {
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      if (token) {
+        // User is logged in, this will trigger App.js to re-render and show Main
+        // Force a re-check by navigating to itself
+        setTimeout(() => {
+          // App.js will detect token and show Main navigator
+        }, 0);
+      }
+    } catch (error) {
+      console.log('Error checking login:', error);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
