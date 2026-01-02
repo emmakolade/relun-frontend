@@ -29,22 +29,26 @@ export default function WelcomeScreen({ navigation }) {
             </Text>
 
             <TouchableOpacity
-              style={styles.startButton}
-              onPress={() => navigation.navigate('Login')}
+              style={styles.continueButton}
+              onPress={() => navigation.navigate('OTPVerification', { method: 'email' })}
               activeOpacity={0.8}
             >
-              <Text style={styles.startButtonText}>Get Started</Text>
-              <Ionicons name="arrow-forward" size={24} color={COLORS.primary} />
+              <Ionicons name="mail-outline" size={24} color={COLORS.primary} style={styles.buttonIcon} />
+              <Text style={styles.continueButtonText}>Continue with Email</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() => navigation.navigate('Login')}
-              style={styles.loginLink}
+              style={styles.continueButton}
+              onPress={() => navigation.navigate('OTPVerification', { method: 'phone' })}
+              activeOpacity={0.8}
             >
-              <Text style={styles.loginText}>
-                Already have an account? <Text style={styles.loginTextBold}>Sign In</Text>
-              </Text>
+              <Ionicons name="call-outline" size={24} color={COLORS.primary} style={styles.buttonIcon} />
+              <Text style={styles.continueButtonText}>Continue with Phone</Text>
             </TouchableOpacity>
+
+            <Text style={styles.termsText}>
+              By continuing, you agree to our Terms of Service and Privacy Policy
+            </Text>
           </View>
         </View>
       </LinearGradient>
@@ -103,32 +107,33 @@ const styles = StyleSheet.create({
     opacity: 0.95,
     paddingHorizontal: 20,
   },
-  startButton: {
+  continueButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: COLORS.white,
     paddingVertical: 18,
-    paddingHorizontal: 48,
+    paddingHorizontal: 32,
     borderRadius: SIZES.radiusLarge,
     width: '100%',
+    marginBottom: 16,
     ...SHADOWS.medium,
   },
-  startButtonText: {
+  buttonIcon: {
+    marginRight: 12,
+  },
+  continueButtonText: {
     fontSize: SIZES.h4,
     fontFamily: FONTS.semiBold,
     color: COLORS.primary,
-    marginRight: 12,
   },
-  loginLink: {
-    marginTop: 24,
-  },
-  loginText: {
-    fontSize: SIZES.body2,
+  termsText: {
+    fontSize: SIZES.body3,
     fontFamily: FONTS.regular,
     color: COLORS.white,
-  },
-  loginTextBold: {
-    fontFamily: FONTS.bold,
+    textAlign: 'center',
+    marginTop: 16,
+    opacity: 0.8,
+    paddingHorizontal: 20,
   },
 });

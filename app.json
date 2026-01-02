@@ -53,7 +53,8 @@
         {
           "cameraPermission": "Allow Relun to access your camera for profile verification."
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ]
   }
 }

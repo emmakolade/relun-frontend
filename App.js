@@ -36,8 +36,7 @@ import { Pacifico_400Regular } from '@expo-google-fonts/pacifico';
 
 // Screens
 import WelcomeScreen from './src/screens/WelcomeScreen';
-import LoginScreen from './src/screens/LoginScreen';
-import SignupScreen from './src/screens/SignupScreen';
+import OTPVerificationScreen from './src/screens/OTPVerificationScreen';
 import SegmentSelectionScreen from './src/screens/SegmentSelectionScreen';
 import ProfileCreationScreen from './src/screens/ProfileCreationScreen';
 import PhotoUploadScreen from './src/screens/PhotoUploadScreen';
@@ -98,8 +97,7 @@ export default function App() {
         {!isLoggedIn ? (
           <>
             <Stack.Screen name="Welcome" component={WelcomeScreen} />
-            <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="Signup" component={SignupScreen} />
+            <Stack.Screen name="OTPVerification" component={OTPVerificationScreen} />
             <Stack.Screen name="SegmentSelection" component={SegmentSelectionScreen} />
             <Stack.Screen name="ProfileCreation" component={ProfileCreationScreen} />
             <Stack.Screen name="PhotoUpload" component={PhotoUploadScreen} />

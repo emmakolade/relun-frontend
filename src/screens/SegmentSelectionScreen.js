@@ -31,7 +31,7 @@ export default function SegmentSelectionScreen({ navigation }) {
   const handleContinue = async () => {
     if (selectedSegment) {
       await AsyncStorage.setItem('userSegment', selectedSegment);
-      navigation.navigate('ProfileCreation');
+      navigation.navigate('ProfileCreation', { segment: selectedSegment });
     }
   };
 

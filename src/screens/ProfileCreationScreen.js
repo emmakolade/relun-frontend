@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,38 +9,132 @@ import {
   StatusBar,
   KeyboardAvoidingView,
   Platform,
+  Alert,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
-export default function ProfileCreationScreen({ navigation }) {
+export default function ProfileCreationScreen({ navigation, route }) {
+  const { segment } = route.params || {};
+  
+  const [authMethod, setAuthMethod] = useState('');
   const [name, setName] = useState('');
-  const [age, setAge] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [gender, setGender] = useState('');
   const [bio, setBio] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
 
-  const genders = ['Male', 'Female'];
+  const genders = ['Male', 'Female', 'Other'];
+
+  useEffect(() => {
+    loadAuthMethod();
+  }, []);
+
+  const loadAuthMethod = async () => {
+    const method = await AsyncStorage.getItem('authMethod');
+    setAuthMethod(method);
+    
+    // Pre-fill email or phone based on auth method
+    if (method === 'email') {
+      const userEmail = await AsyncStorage.getItem('userEmail');
+      setEmail(userEmail || '');
+    } else if (method === 'phone') {
+      const userPhone = await AsyncStorage.getItem('userPhone');
+      setPhone(userPhone || '');
+    }
+  };
 
   const calculateProgress = () => {
     let filled = 0;
-    if (name) filled += 25;
-    if (age) filled += 25;
-    if (gender) filled += 25;
-    if (bio) filled += 25;
-    return filled;
+    const totalFields = 6; // name, dob, gender, bio, email/phone
+    if (name) filled++;
+    if (dateOfBirth) filled++;
+    if (gender) filled++;
+    if (bio) filled++;
+    if (authMethod === 'email' && phone) filled++;
+    if (authMethod === 'phone' && email) filled++;
+    return Math.round((filled / totalFields) * 100);
   };
 
   const progress = calculateProgress();
-  const isValid = name && age && gender;
+  
+  const isValidEmail = (email) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  };
+
+  const isValidPhone = (phone) => {
+    return /^\d{10,}$/.test(phone.replace(/[\s-]/g, ''));
+  };
+
+  const formatDate = (date) => {
+    if (!date) return '';
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
+  const calculateAge = (birthDate) => {
+    const today = new Date();
+    const birth = new Date(birthDate);
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+  const handleDateChange = (event, selectedDate) => {
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
+    }
+    
+    if (selectedDate) {
+      const age = calculateAge(selectedDate);
+      if (age < 18) {formatDate(dateOfBirth)
+        Alert.alert('Age Requirement', 'You must be at least 18 years old to use this app.');
+        return;
+      }
+      setDateOfBirth(selectedDate);
+    }
+  };
+
+  const isValid = () => {
+    if (!name || !dateOfBirth || !gender) return false;
+    if (authMethod === 'email' && (!phone || !isValidPhone(phone))) return false;
+    if (authMethod === 'phone' && (!email || !isValidEmail(email))) return false;
+    return true;
+  };
 
   const handleContinue = async () => {
-    if (isValid) {
+    if (!isValid()) {
+      Alert.alert('Incomplete Profile', 'Please fill all required fields correctly');
+      return;
+    }
+
+    try {
       await AsyncStorage.setItem('userName', name);
-      await AsyncStorage.setItem('userAge', age);
+      await AsyncStorage.setItem('userDateOfBirth', dateOfBirth);
       await AsyncStorage.setItem('userGender', gender);
       await AsyncStorage.setItem('userBio', bio);
+      await AsyncStorage.setItem('userSegment', segment || '');
+      
+      if (authMethod === 'email') {
+        await AsyncStorage.setItem('userPhone', phone);
+      } else {
+        await AsyncStorage.setItem('userEmail', email);
+      }
+      
       navigation.navigate('PhotoUpload');
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      Alert.alert('Error', 'Failed to save profile. Please try again.');
     }
   };
 
@@ -69,19 +163,19 @@ export default function ProfileCreationScreen({ navigation }) {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.content}>
-          <Text style={styles.title}>Create Your Profile</Text>
+          <Text style={styles.title}>Complete Your Profile</Text>
           <Text style={styles.subtitle}>
-            Tell us about yourself to find your perfect match
+            Let's set up your profile to help you find the perfect match
           </Text>
 
           {/* Name Input */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>What's your name?</Text>
+            <Text style={styles.label}>Full Name *</Text>
             <View style={styles.inputContainer}>
               <Ionicons name="person-outline" size={20} color={COLORS.textSecondary} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="Enter your name"
+                placeholder="Enter your full name"
                 placeholderTextColor={COLORS.textLight}
                 value={name}
                 onChangeText={setName}
@@ -90,27 +184,70 @@ export default function ProfileCreationScreen({ navigation }) {
             </View>
           </View>
 
-          {/* Age Input */}
+          {/* Date of Birth Input */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>How old are you?</Text>
-            <View style={styles.inputContainer}>
+            <Text style={styles.label}>Date of Birth *</Text>
+            <TouchableOpacity
+              style={styles.inputContainer}
+              onPress={() => setShowDatePicker(true)}
+              activeOpacity={0.7}
+            >
               <Ionicons name="calendar-outline" size={20} color={COLORS.textSecondary} style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your age"
-                placeholderTextColor={COLORS.textLight}
-                value={age}
-                onChangeText={setAge}
-                keyboardType="number-pad"
-                maxLength={2}
-              />
-              {age && <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />}
-            </View>
+              <Text style={[styles.dateText, !dateOfBirth && styles.placeholderText]}>
+                {dateOfBirth ? formatDate(dateOfBirth) : 'Select your date of birth'}
+              </Text>
+              {dateOfBirth && (
+                <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
+              )}
+            </TouchableOpacity>
           </View>
+
+          {/* Date Picker Modal for iOS */}
+          {Platform.OS === 'ios' && (
+            <Modal
+              visible={showDatePicker}
+              transparent={true}
+              animationType="slide"
+            >
+              <View style={styles.modalOverlay}>
+                <View style={styles.modalContent}>
+                  <View style={styles.modalHeader}>
+                    <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                      <Text style={styles.modalCancelButton}>Cancel</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.modalTitle}>Select Date of Birth</Text>
+                    <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                      <Text style={styles.modalDoneButton}>Done</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <DateTimePicker
+                    value={dateOfBirth || new Date(2000, 0, 1)}
+                    mode="date"
+                    display="spinner"
+                    onChange={handleDateChange}
+                    maximumDate={new Date()}
+                    minimumDate={new Date(1940, 0, 1)}
+                  />
+                </View>
+              </View>
+            </Modal>
+          )}
+
+          {/* Date Picker for Android */}
+          {Platform.OS === 'android' && showDatePicker && (
+            <DateTimePicker
+              value={dateOfBirth || new Date(2000, 0, 1)}
+              mode="date"
+              display="calendar"
+              onChange={handleDateChange}
+              maximumDate={new Date()}
+              minimumDate={new Date(1940, 0, 1)}
+            />
+          )}
 
           {/* Gender Selection */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Select your gender</Text>
+            <Text style={styles.label}>Gender *</Text>
             <View style={styles.genderContainer}>
               {genders.map((item) => (
                 <TouchableOpacity
@@ -123,7 +260,7 @@ export default function ProfileCreationScreen({ navigation }) {
                   activeOpacity={0.7}
                 >
                   <Ionicons
-                    name={item === 'Male' ? 'male' : 'female'}
+                    name={item === 'Male' ? 'male' : item === 'Female' ? 'female' : 'male-female'}
                     size={24}
                     color={gender === item ? COLORS.white : COLORS.textSecondary}
                   />
@@ -148,16 +285,58 @@ export default function ProfileCreationScreen({ navigation }) {
             </View>
           </View>
 
+          {/* Email/Phone Input based on auth method */}
+          {authMethod === 'phone' && (
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Email Address *</Text>
+              <View style={styles.inputContainer}>
+                <Ionicons name="mail-outline" size={20} color={COLORS.textSecondary} style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="your@email.com"
+                  placeholderTextColor={COLORS.textLight}
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+                {email && isValidEmail(email) && (
+                  <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
+                )}
+              </View>
+            </View>
+          )}
+
+          {authMethod === 'email' && (
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Phone Number *</Text>
+              <View style={styles.inputContainer}>
+                <Ionicons name="call-outline" size={20} color={COLORS.textSecondary} style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="+1234567890"
+                  placeholderTextColor={COLORS.textLight}
+                  value={phone}
+                  onChangeText={setPhone}
+                  keyboardType="phone-pad"
+                />
+                {phone && isValidPhone(phone) && (
+                  <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
+                )}
+              </View>
+            </View>
+          )}
+
           {/* Bio Input */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>
-              Tell us about yourself{' '}
+              About You{' '}
               <Text style={styles.optionalText}>(Optional)</Text>
             </Text>
             <View style={[styles.inputContainer, styles.bioContainer]}>
               <TextInput
                 style={[styles.input, styles.bioInput]}
-                placeholder="Write a short bio to stand out..."
+                placeholder="Write something interesting about yourself..."
                 placeholderTextColor={COLORS.textLight}
                 value={bio}
                 onChangeText={setBio}
@@ -175,7 +354,7 @@ export default function ProfileCreationScreen({ navigation }) {
             <View style={styles.tipsContent}>
               <Text style={styles.tipsTitle}>Profile Tips:</Text>
               <Text style={styles.tipText}>• Use your real name to build trust</Text>
-              <Text style={styles.tipText}>• Be honest about your age</Text>
+              <Text style={styles.tipText}>• Enter accurate date of birth</Text>
               <Text style={styles.tipText}>• Make your bio fun and authentic</Text>
             </View>
           </View>
@@ -185,9 +364,9 @@ export default function ProfileCreationScreen({ navigation }) {
       {/* Continue Button */}
       <View style={styles.footer}>
         <TouchableOpacity
-          style={[styles.continueButton, !isValid && styles.disabledButton]}
+          style={[styles.continueButton, !isValid() && styles.disabledButton]}
           onPress={handleContinue}
-          disabled={!isValid}
+          disabled={!isValid()}
           activeOpacity={0.8}
         >
           <Text style={styles.continueButtonText}>Continue to Photos</Text>
@@ -243,6 +422,50 @@ const styles = StyleSheet.create({
   title: {
     fontSize: SIZES.h2,
     fontFamily: FONTS.bold,
+  dateText: {
+    flex: 1,
+    fontSize: SIZES.body1,
+    fontFamily: FONTS.regular,
+    color: COLORS.text,
+  },
+  placeholderText: {
+    color: COLORS.textLight,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: COLORS.white,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 40,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: SIZES.padding,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.grayLight,
+  },
+  modalTitle: {
+    fontSize: SIZES.h4,
+    fontFamily: FONTS.semiBold,
+    color: COLORS.text,
+  },
+  modalCancelButton: {
+    fontSize: SIZES.body1,
+    fontFamily: FONTS.regular,
+    color: COLORS.textSecondary,
+  },
+  modalDoneButton: {
+    fontSize: SIZES.body1,
+    fontFamily: FONTS.semiBold,
+    color: COLORS.primary,
+  },
     color: COLORS.text,
     marginBottom: 8,
   },
