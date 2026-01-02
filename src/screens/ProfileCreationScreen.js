@@ -29,7 +29,7 @@ export default function ProfileCreationScreen({ navigation, route }) {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
 
-  const genders = ['Male', 'Female', 'Other'];
+  const genders = ['Male', 'Female'];
 
   useEffect(() => {
     loadAuthMethod();
