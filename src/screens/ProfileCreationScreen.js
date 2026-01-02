@@ -120,7 +120,7 @@ export default function ProfileCreationScreen({ navigation, route }) {
 
     try {
       await AsyncStorage.setItem('userName', name);
-      await AsyncStorage.setItem('userDateOfBirth', dateOfBirth);
+      await AsyncStorage.setItem('userDateOfBirth', formatDate(dateOfBirth));
       await AsyncStorage.setItem('userGender', gender);
       await AsyncStorage.setItem('userBio', bio);
       await AsyncStorage.setItem('userSegment', segment || '');
