@@ -265,6 +265,7 @@ function ProfileViewScreen({ navigation }) {
   );
 }
 
+
 export default function ProfileScreen() {
   return (
     <Stack.Navigator
