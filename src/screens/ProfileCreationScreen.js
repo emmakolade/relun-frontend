@@ -97,11 +97,14 @@ export default function ProfileCreationScreen({ navigation, route }) {
     
     if (selectedDate) {
       const age = calculateAge(selectedDate);
-      if (age < 18) {formatDate(dateOfBirth)
+      if (age < 18) {
         Alert.alert('Age Requirement', 'You must be at least 18 years old to use this app.');
         return;
       }
       setDateOfBirth(selectedDate);
+      if (Platform.OS === 'ios') {
+        setShowDatePicker(false);
+      }
     }
   };
 
@@ -209,21 +212,34 @@ export default function ProfileCreationScreen({ navigation, route }) {
           </View>
 
           {/* Date Picker Modal for iOS */}
-          {Platform.OS === 'ios' && (
+          {Platform.OS === 'ios' && showDatePicker && (
             <Modal
               visible={showDatePicker}
               transparent={true}
               animationType="slide"
+              onRequestClose={() => setShowDatePicker(false)}
             >
-              <View style={styles.modalOverlay}>
-                <View style={styles.modalContent}>
+              <TouchableOpacity 
+                style={styles.modalOverlay}
+                activeOpacity={1} 
+                onPress={() => setShowDatePicker(false)}
+              >
+                <TouchableOpacity 
+                  style={styles.modalContent}
+                  activeOpacity={1}
+                  onPress={(e) => e.stopPropagation()}
+                >
                   <View style={styles.modalHeader}>
                     <TouchableOpacity onPress={() => setShowDatePicker(false)}>
                       <Text style={styles.modalCancelButton}>Cancel</Text>
                     </TouchableOpacity>
                     <Text style={styles.modalTitle}>Select Date of Birth</Text>
-                    <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                      <Text style={styles.modalDoneButton}>Done</Text>
+                    <TouchableOpacity onPress={() => {
+                      if (dateOfBirth) {
+                        setShowDatePicker(false);
+                      }
+                    }}>
+                      <Text style={[styles.modalDoneButton, !dateOfBirth && { opacity: 0.5 }]}>Done</Text>
                     </TouchableOpacity>
                   </View>
                   <DateTimePicker
@@ -233,9 +249,12 @@ export default function ProfileCreationScreen({ navigation, route }) {
                     onChange={handleDateChange}
                     maximumDate={new Date()}
                     minimumDate={new Date(1940, 0, 1)}
+                    textColor={COLORS.text}
+                    themeVariant="light"
+                    style={styles.dateTimePicker}
                   />
-                </View>
-              </View>
+                </TouchableOpacity>
+              </TouchableOpacity>
             </Modal>
           )}
 
@@ -454,13 +473,16 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
   },
   modalContent: {
     backgroundColor: COLORS.white,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderRadius: 20,
     paddingBottom: 40,
+    width: '100%',
+    maxWidth: 400,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -485,6 +507,20 @@ const styles = StyleSheet.create({
     fontSize: SIZES.body1,
     fontFamily: FONTS.semiBold,
     color: COLORS.primary,
+  },
+  dateTimePicker: {
+    height: 200,
+    backgroundColor: COLORS.white,
+    width: '100%',
+  },
+  dateText: {
+    flex: 1,
+    fontSize: SIZES.body1,
+    fontFamily: FONTS.regular,
+    color: COLORS.text,
+  },
+  placeholderText: {
+    color: COLORS.textLight,
   },
     color: COLORS.text,
     marginBottom: 8,
