@@ -9,12 +9,17 @@ import {
   StatusBar,
   Alert,
   Platform,
+  Modal,
+  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { createStackNavigator } from '@react-navigation/stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ImagePicker from 'expo-image-picker';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
 import SettingsScreen from './SettingsScreen';
+
+const { width, height } = Dimensions.get('window');
 
 const Stack = createStackNavigator();
 
@@ -27,6 +32,8 @@ function ProfileViewScreen({ navigation }) {
     segment: 'relationship',
     photos: [null, null, null],
   });
+  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(null);
+  const [isPhotoModalVisible, setIsPhotoModalVisible] = useState(false);
 
   useEffect(() => {
     loadProfile();
@@ -53,6 +60,66 @@ function ProfileViewScreen({ navigation }) {
       }
     } catch (error) {
       console.log('Error loading profile:', error);
+    }
+  };
+
+  const pickImage = async (index) => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'Please grant camera roll permissions to add photos.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [3, 4],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        const newPhotos = [...profile.photos];
+        newPhotos[index] = result.assets[0].uri;
+        
+        setProfile({ ...profile, photos: newPhotos });
+        await AsyncStorage.setItem('userPhotos', JSON.stringify(newPhotos));
+      }
+    } catch (error) {
+      console.log('Error picking image:', error);
+      Alert.alert('Error', 'Failed to pick image. Please try again.');
+    }
+  };
+
+  const deletePhoto = async (index) => {
+    Alert.alert(
+      'Delete Photo',
+      'Are you sure you want to delete this photo?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            const newPhotos = [...profile.photos];
+            newPhotos[index] = null;
+            
+            setProfile({ ...profile, photos: newPhotos });
+            await AsyncStorage.setItem('userPhotos', JSON.stringify(newPhotos));
+            setIsPhotoModalVisible(false);
+          },
+        },
+      ]
+    );
+  };
+
+  const viewPhoto = (index) => {
+    if (profile.photos[index]) {
+      setSelectedPhotoIndex(index);
+      setIsPhotoModalVisible(true);
+    } else {
+      pickImage(index);
     }
   };
 
@@ -197,15 +264,21 @@ function ProfileViewScreen({ navigation }) {
           <Text style={styles.sectionTitle}>My Photos</Text>
           <View style={styles.photosGrid}>
             {profile.photos.map((photo, index) => (
-              <View key={index} style={styles.photoBox}>
+              <TouchableOpacity 
+                key={index} 
+                style={styles.photoBox}
+                onPress={() => viewPhoto(index)}
+                activeOpacity={0.8}
+              >
                 {photo ? (
                   <Image source={{ uri: photo }} style={styles.photoImage} />
                 ) : (
                   <View style={styles.photoPlaceholder}>
-                    <Ionicons name="camera" size={32} color={COLORS.textLight} />
+                    <Ionicons name="add-circle" size={40} color={COLORS.primary} />
+                    <Text style={styles.addPhotoText}>Add Photo</Text>
                   </View>
                 )}
-              </View>
+              </TouchableOpacity>
             ))}
           </View>
         </View>
@@ -261,6 +334,57 @@ function ProfileViewScreen({ navigation }) {
           <Text style={styles.versionText}>Version 1.0.0</Text>
         </View>
       </ScrollView>
+
+      {/* Photo Viewer Modal */}
+      <Modal
+        visible={isPhotoModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setIsPhotoModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <StatusBar barStyle="light-content" />
+          
+          {/* Close Button */}
+          <TouchableOpacity 
+            style={styles.closeButton}
+            onPress={() => setIsPhotoModalVisible(false)}
+          >
+            <Ionicons name="close" size={32} color={COLORS.white} />
+          </TouchableOpacity>
+
+          {/* Photo */}
+          {selectedPhotoIndex !== null && profile.photos[selectedPhotoIndex] && (
+            <Image 
+              source={{ uri: profile.photos[selectedPhotoIndex] }} 
+              style={styles.modalImage}
+              resizeMode="contain"
+            />
+          )}
+
+          {/* Action Buttons */}
+          <View style={styles.modalActions}>
+            <TouchableOpacity 
+              style={styles.modalActionButton}
+              onPress={() => {
+                setIsPhotoModalVisible(false);
+                setTimeout(() => pickImage(selectedPhotoIndex), 300);
+              }}
+            >
+              <Ionicons name="image-outline" size={24} color={COLORS.white} />
+              <Text style={styles.modalActionText}>Change Photo</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.modalActionButton, styles.deleteActionButton]}
+              onPress={() => deletePhoto(selectedPhotoIndex)}
+            >
+              <Ionicons name="trash-outline" size={24} color={COLORS.error} />
+              <Text style={[styles.modalActionText, { color: COLORS.error }]}>Delete</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -403,6 +527,15 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.grayLight,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: COLORS.primary,
+  },
+  addPhotoText: {
+    fontSize: SIZES.body3,
+    fontFamily: FONTS.medium,
+    color: COLORS.primary,
+    marginTop: 8,
   },
   menuSection: {
     paddingHorizontal: SIZES.padding,
@@ -485,5 +618,52 @@ const styles = StyleSheet.create({
     fontSize: SIZES.body3,
     fontFamily: FONTS.regular,
     color: COLORS.textLight,
+  },
+  // Modal Styles
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    zIndex: 10,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalImage: {
+    width: width,
+    height: height * 0.7,
+  },
+  modalActions: {
+    position: 'absolute',
+    bottom: 40,
+    flexDirection: 'row',
+    gap: 16,
+    paddingHorizontal: SIZES.padding,
+  },
+  modalActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: SIZES.radius,
+    gap: 8,
+  },
+  deleteActionButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+  },
+  modalActionText: {
+    fontSize: SIZES.body2,
+    fontFamily: FONTS.semiBold,
+    color: COLORS.white,
   },
 });
