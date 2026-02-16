@@ -11,14 +11,18 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CommonActions } from '@react-navigation/native';
+import { StackScreenProps } from '@react-navigation/stack';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { RootStackParamList } from '../types';
 
-export default function PhotoUploadScreen({ navigation }) {
-  const [photos, setPhotos] = useState([null, null, null]);
-  const [location, setLocation] = useState(null);
+type Props = StackScreenProps<RootStackParamList, 'PhotoUpload'>;
+
+export default function PhotoUploadScreen({ navigation }: Props) {
+  const [photos, setPhotos] = useState<(string | null)[]>([null, null, null]);
+  const [location, setLocation] = useState<Location.LocationObject | null>(null);
   
   const checkLoginStatus = async () => {
     // Helper to trigger app reload by navigating
@@ -29,7 +33,7 @@ export default function PhotoUploadScreen({ navigation }) {
     }
   };
 
-  const pickImage = async (index) => {
+  const pickImage = async (index: number) => {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       
@@ -56,7 +60,7 @@ export default function PhotoUploadScreen({ navigation }) {
     }
   };
 
-  const removePhoto = (index) => {
+  const removePhoto = (index: number) => {
     const newPhotos = [...photos];
     newPhotos[index] = null;
     setPhotos(newPhotos);
@@ -75,7 +79,7 @@ export default function PhotoUploadScreen({ navigation }) {
     Alert.alert('Success', 'Location enabled successfully');
   };
 
-  const calculateProgress = () => {
+  const calculateProgress = (): number => {
     const photoCount = photos.filter((p) => p !== null).length;
     const photoProgress = (photoCount / 3) * 75;
     const locationProgress = location ? 25 : 0;

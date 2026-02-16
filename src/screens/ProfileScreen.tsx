@@ -13,7 +13,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { createStackNavigator } from '@react-navigation/stack';
+import { createStackNavigator, StackScreenProps } from '@react-navigation/stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
@@ -21,10 +21,26 @@ import SettingsScreen from './SettingsScreen';
 
 const { width, height } = Dimensions.get('window');
 
-const Stack = createStackNavigator();
+export type ProfileStackParamList = {
+  ProfileView: undefined;
+  Settings: undefined;
+};
 
-function ProfileViewScreen({ navigation }) {
-  const [profile, setProfile] = useState({
+const Stack = createStackNavigator<ProfileStackParamList>();
+
+type ProfileViewProps = StackScreenProps<ProfileStackParamList, 'ProfileView'>;
+
+interface UserProfile {
+  name: string;
+  age: string;
+  gender: string;
+  bio: string;
+  segment: string;
+  photos: (string | null)[];
+}
+
+function ProfileViewScreen({ navigation }: ProfileViewProps) {
+  const [profile, setProfile] = useState<UserProfile>({
     name: 'John',
     age: '28',
     gender: 'Male',
@@ -32,7 +48,7 @@ function ProfileViewScreen({ navigation }) {
     segment: 'relationship',
     photos: [null, null, null],
   });
-  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(null);
+  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
   const [isPhotoModalVisible, setIsPhotoModalVisible] = useState(false);
 
   useEffect(() => {
@@ -406,33 +422,33 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.background, // Off-white
   },
   profileHeader: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.background, // Removed pink background
     paddingTop: 60,
     paddingBottom: 32,
     paddingHorizontal: SIZES.padding,
     alignItems: 'center',
-    borderBottomLeftRadius: SIZES.radiusLarge,
-    borderBottomRightRadius: SIZES.radiusLarge,
+    // Removed radius - clean header
   },
   photoContainer: {
     position: 'relative',
-    marginBottom: 16,
+    marginBottom: 20,
+    ...SHADOWS.medium, // Better shadow
   },
   profilePhoto: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 128, // Slightly larger
+    height: 128,
+    borderRadius: 64,
     borderWidth: 4,
     borderColor: COLORS.white,
   },
   profilePhotoPlaceholder: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: COLORS.secondary,
+    width: 128,
+    height: 128,
+    borderRadius: 64,
+    backgroundColor: COLORS.grayLight,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 4,
@@ -440,40 +456,43 @@ const styles = StyleSheet.create({
   },
   segmentBadge: {
     position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    bottom: 4,
+    right: 4,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.primary, // Using primary color for badge bg
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 3,
     borderColor: COLORS.white,
+    ...SHADOWS.small,
   },
   segmentBadgeText: {
-    fontSize: 18,
+    fontSize: 20,
   },
   profileName: {
-    fontSize: SIZES.h2,
+    fontSize: 28,
     fontFamily: FONTS.bold,
-    color: COLORS.white,
-    marginBottom: 8,
+    color: COLORS.text, // Dark text
+    marginBottom: 4,
   },
   profileBio: {
     fontSize: SIZES.body1,
     fontFamily: FONTS.regular,
-    color: COLORS.white,
-    opacity: 0.95,
+    color: COLORS.textSecondary,
     textAlign: 'center',
     marginBottom: 24,
+    paddingHorizontal: 20,
   },
   statsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: SIZES.radius,
-    paddingVertical: 16,
+    backgroundColor: COLORS.white, // White card
+    borderRadius: SIZES.radiusLarge,
+    paddingVertical: 20,
     paddingHorizontal: 32,
+    ...SHADOWS.small,
   },
   statItem: {
     alignItems: 'center',
@@ -482,19 +501,20 @@ const styles = StyleSheet.create({
   statDivider: {
     width: 1,
     height: 40,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: COLORS.border,
   },
   statValue: {
-    fontSize: SIZES.h3,
+    fontSize: 20,
     fontFamily: FONTS.bold,
-    color: COLORS.white,
+    color: COLORS.text,
     marginBottom: 4,
   },
   statLabel: {
-    fontSize: SIZES.body3,
-    fontFamily: FONTS.regular,
-    color: COLORS.white,
-    opacity: 0.9,
+    fontSize: 12,
+    fontFamily: FONTS.medium, // Changed to medium
+    color: COLORS.textLight,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   photosSection: {
     paddingHorizontal: SIZES.padding,
@@ -502,20 +522,23 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
   },
   sectionTitle: {
-    fontSize: SIZES.h4,
-    fontFamily: FONTS.semiBold,
+    fontSize: 18,
+    fontFamily: FONTS.bold,
     color: COLORS.text,
     marginBottom: 16,
+    marginLeft: 4,
   },
   photosGrid: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 16, // More gap
   },
   photoBox: {
     flex: 1,
     aspectRatio: 3 / 4,
     borderRadius: SIZES.radius,
     overflow: 'hidden',
+    backgroundColor: COLORS.grayLight,
+    ...SHADOWS.small,
   },
   photoImage: {
     width: '100%',
@@ -524,12 +547,12 @@ const styles = StyleSheet.create({
   photoPlaceholder: {
     width: '100%',
     height: '100%',
-    backgroundColor: COLORS.grayLight,
+    backgroundColor: COLORS.white,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
     borderStyle: 'dashed',
-    borderColor: COLORS.primary,
+    borderColor: COLORS.border,
   },
   addPhotoText: {
     fontSize: SIZES.body3,
@@ -540,15 +563,16 @@ const styles = StyleSheet.create({
   menuSection: {
     paddingHorizontal: SIZES.padding,
     paddingVertical: 8,
+    gap: 16,
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: COLORS.white,
-    borderRadius: SIZES.radius,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: SIZES.radiusLarge, // Modern curve
+    padding: 20, // More padding
+    marginBottom: 0, // Handled by gap
     ...SHADOWS.small,
   },
   menuItemLeft: {
@@ -559,30 +583,30 @@ const styles = StyleSheet.create({
   menuIcon: {
     width: 48,
     height: 48,
-    borderRadius: 24,
-    backgroundColor: COLORS.backgroundLight,
+    borderRadius: 24, // Circle
+    backgroundColor: COLORS.grayLight, // Subtle bg
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 16,
   },
   menuItemText: {
     flex: 1,
   },
   menuItemTitle: {
-    fontSize: SIZES.body1,
+    fontSize: 16,
     fontFamily: FONTS.semiBold,
     color: COLORS.text,
   },
   menuItemSubtitle: {
-    fontSize: SIZES.body3,
+    fontSize: 13,
     fontFamily: FONTS.regular,
     color: COLORS.textSecondary,
     marginTop: 2,
   },
   dangerSection: {
     paddingHorizontal: SIZES.padding,
-    paddingTop: 16,
-    paddingBottom: 24,
+    paddingTop: 24,
+    paddingBottom: 40,
   },
   dangerButton: {
     flexDirection: 'row',

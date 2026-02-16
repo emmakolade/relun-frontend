@@ -10,12 +10,16 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { CompositeScreenProps } from '@react-navigation/native';
+import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
+import { StackScreenProps } from '@react-navigation/stack';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
+import { MainTabParamList, RootStackParamList, User } from '../types';
 
 const { width, height } = Dimensions.get('window');
 
 // Mock data - in a real app, this would come from your backend
-const MOCK_USERS = [
+const MOCK_USERS: User[] = [
   {
     id: '1',
     name: 'Sarah',
@@ -42,13 +46,18 @@ const MOCK_USERS = [
   },
 ];
 
-export default function SwipeScreen({ navigation }) {
+type Props = CompositeScreenProps<
+  BottomTabScreenProps<MainTabParamList, 'Swipe'>,
+  StackScreenProps<RootStackParamList>
+>;
+
+export default function SwipeScreen({ navigation }: Props) {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [users, setUsers] = useState(MOCK_USERS);
+  const [users, setUsers] = useState<User[]>(MOCK_USERS);
 
   const currentUser = users[currentIndex];
 
-  const handleSwipe = (direction) => {
+  const handleSwipe = (direction: 'left' | 'right') => {
     if (direction === 'right') {
       console.log('Liked:', currentUser.name);
       // TODO: Send like to backend

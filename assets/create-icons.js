@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Create SVG icons that can be used temporarily
-const createSVGIcon = (size, filename, bgColor = '#FF6B9D') => {
+const createSVGIcon = (size, filename, bgColor = '#FF5E62') => {
   const svg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
   <rect width="${size}" height="${size}" fill="${bgColor}" rx="${size * 0.2}"/>
@@ -23,8 +23,8 @@ const createSplashSVG = () => {
 <svg width="1284" height="2778" viewBox="0 0 1284 2778" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="grad1" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" style="stop-color:#FF6B9D;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#C74375;stop-opacity:1" />
+      <stop offset="0%" style="stop-color:#FF5E62;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FF9966;stop-opacity:1" />
     </linearGradient>
   </defs>
   <rect width="1284" height="2778" fill="url(#grad1)"/>

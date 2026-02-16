@@ -17,12 +17,17 @@ import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
-export default function ProfileCreationScreen({ navigation, route }) {
+import { RootStackParamList } from '../types';
+import { StackScreenProps } from '@react-navigation/stack';
+
+type Props = StackScreenProps<RootStackParamList, 'ProfileCreation'>;
+
+export default function ProfileCreationScreen({ navigation, route }: Props) {
   const { segment } = route.params || {};
   
-  const [authMethod, setAuthMethod] = useState('');
+  const [authMethod, setAuthMethod] = useState<string | null>('');
   const [name, setName] = useState('');
-  const [dateOfBirth, setDateOfBirth] = useState(null);
+  const [dateOfBirth, setDateOfBirth] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [gender, setGender] = useState('');
   const [bio, setBio] = useState('');
@@ -49,12 +54,12 @@ export default function ProfileCreationScreen({ navigation, route }) {
     }
   };
 
-  const calculateProgress = () => {
+  const calculateProgress = (): number => {
     let filled = 0;
     const totalFields = 6; // name, dob, gender, bio, email/phone
     if (name) filled++;
     if (dateOfBirth) filled++;
-    if (gender) filled++;
+    if (gender !== '') filled++;
     if (bio) filled++;
     if (authMethod === 'email' && phone) filled++;
     if (authMethod === 'phone' && email) filled++;
@@ -63,15 +68,15 @@ export default function ProfileCreationScreen({ navigation, route }) {
 
   const progress = calculateProgress();
   
-  const isValidEmail = (email) => {
+  const isValidEmail = (email: string) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   };
 
-  const isValidPhone = (phone) => {
+  const isValidPhone = (phone: string) => {
     return /^\d{10,}$/.test(phone.replace(/[\s-]/g, ''));
   };
 
-  const formatDate = (date) => {
+  const formatDate = (date: Date | null) => {
     if (!date) return '';
     const day = String(date.getDate()).padStart(2, '0');
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -79,7 +84,7 @@ export default function ProfileCreationScreen({ navigation, route }) {
     return `${day}/${month}/${year}`;
   };
 
-  const calculateAge = (birthDate) => {
+  const calculateAge = (birthDate: Date) => {
     const today = new Date();
     const birth = new Date(birthDate);
     let age = today.getFullYear() - birth.getFullYear();
@@ -90,7 +95,7 @@ export default function ProfileCreationScreen({ navigation, route }) {
     return age;
   };
 
-  const handleDateChange = (event, selectedDate) => {
+  const handleDateChange = (event: any, selectedDate?: Date) => {
     if (Platform.OS === 'android') {
       setShowDatePicker(false);
     }
@@ -405,84 +410,208 @@ export default function ProfileCreationScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.background, // Off-white
   },
   header: {
-    paddingTop: 50,
+    paddingTop: Platform.OS === 'android' ? 40 : 60,
     paddingHorizontal: SIZES.padding,
-    paddingBottom: 20,
+    paddingBottom: 24,
   },
   backButton: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: COLORS.white,
     justifyContent: 'center',
-    marginBottom: 16,
+    alignItems: 'center',
+    marginBottom: 24,
+    ...SHADOWS.small,
   },
   progressContainer: {
     gap: 8,
   },
   progressBar: {
-    height: 4,
-    backgroundColor: COLORS.grayLight,
-    borderRadius: 2,
+    height: 6,
+    backgroundColor: COLORS.gray, // Darker gray
+    borderRadius: 3,
     overflow: 'hidden',
   },
   progress: {
     height: '100%',
     backgroundColor: COLORS.primary,
-    borderRadius: 2,
+    borderRadius: 3,
   },
   progressText: {
-    fontSize: SIZES.body3,
+    fontSize: 14,
     fontFamily: FONTS.medium,
     color: COLORS.primary,
+    marginTop: 4,
   },
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: SIZES.padding,
   },
   content: {
-    paddingBottom: 20,
+    paddingBottom: 40,
   },
   title: {
-    fontSize: SIZES.h2,
+    fontSize: 32,
     fontFamily: FONTS.bold,
-  dateText: {
-    flex: 1,
+    color: COLORS.text,
+    marginBottom: 8,
+    letterSpacing: -0.5,
+  },
+  subtitle: {
     fontSize: SIZES.body1,
     fontFamily: FONTS.regular,
-    color: COLORS.text,
+    color: COLORS.textSecondary,
+    marginBottom: 40,
+    lineHeight: 24,
   },
-  placeholderText: {
+  inputGroup: {
+    marginBottom: 24,
+  },
+  label: {
+    fontSize: 16,
+    fontFamily: FONTS.semiBold,
+    color: COLORS.text,
+    marginBottom: 12,
+  },
+  optionalText: {
+    fontSize: 14,
+    fontFamily: FONTS.regular,
     color: COLORS.textLight,
   },
-  warningContainer: {
+  inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
-    paddingHorizontal: 4,
-    gap: 8,
+    backgroundColor: COLORS.white, // White input
+    borderRadius: SIZES.radius,
+    paddingHorizontal: 20,
+    height: 60,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    ...SHADOWS.small,
   },
-  warningText: {
+  inputIcon: {
+    marginRight: 16,
+    opacity: 0.5,
+  },
+  input: {
     flex: 1,
-    fontSize: SIZES.body3,
-    fontFamily: FONTS.regular,
-    color: COLORS.warning,
-    lineHeight: 18,
+    fontSize: 16,
+    fontFamily: FONTS.medium,
+    color: COLORS.text,
   },
+  bioContainer: {
+    height: 140,
+    alignItems: 'flex-start',
+    paddingVertical: 16,
+  },
+  bioInput: {
+    height: '100%',
+    textAlignVertical: 'top',
+  },
+  charCount: {
+    fontSize: 12,
+    fontFamily: FONTS.regular,
+    color: COLORS.textLight,
+    textAlign: 'right',
+    marginTop: 8,
+  },
+  genderContainer: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  genderButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.white, // White card
+    borderRadius: SIZES.radius,
+    paddingVertical: 24, // Taller touch target
+    gap: 12,
+    ...SHADOWS.small,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  genderButtonSelected: {
+    backgroundColor: COLORS.primary,
+    shadowColor: COLORS.primary,
+    shadowOpacity: 0.3,
+  },
+  genderText: {
+    fontSize: 16,
+    fontFamily: FONTS.medium,
+    color: COLORS.textSecondary,
+  },
+  genderTextSelected: {
+    color: COLORS.white,
+    fontFamily: FONTS.semiBold,
+  },
+  tipsContainer: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255, 94, 98, 0.1)', // Subtle primary tint (coral)
+    borderRadius: SIZES.radius,
+    padding: 20,
+    gap: 16,
+    marginTop: 16,
+  },
+  tipsContent: {
+    flex: 1,
+  },
+  tipsTitle: {
+    fontSize: 14,
+    fontFamily: FONTS.bold,
+    color: COLORS.primary,
+    marginBottom: 8,
+  },
+  tipText: {
+    fontSize: 13,
+    fontFamily: FONTS.medium,
+    color: COLORS.textSecondary,
+    lineHeight: 20,
+    marginBottom: 4,
+  },
+  footer: {
+    paddingHorizontal: SIZES.padding,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+    backgroundColor: COLORS.background,
+  },
+  continueButton: {
+    flexDirection: 'row',
+    backgroundColor: COLORS.primary,
+    borderRadius: SIZES.radiusLarge, // Pill
+    paddingVertical: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    ...SHADOWS.medium,
+    shadowColor: COLORS.primary,
+  },
+  disabledButton: {
+    backgroundColor: COLORS.gray,
+    opacity: 0.5,
+    shadowOpacity: 0,
+  },
+  continueButtonText: {
+    fontSize: 18,
+    fontFamily: FONTS.semiBold,
+    color: COLORS.white,
+  },
+  // Modal Styles
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
+    justifyContent: 'flex-end',
   },
   modalContent: {
     backgroundColor: COLORS.white,
-    borderRadius: 20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     paddingBottom: 40,
     width: '100%',
-    maxWidth: 400,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -494,166 +623,46 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.grayLight,
   },
   modalTitle: {
-    fontSize: SIZES.h4,
+    fontSize: 18,
     fontFamily: FONTS.semiBold,
     color: COLORS.text,
   },
   modalCancelButton: {
-    fontSize: SIZES.body1,
+    fontSize: 16,
     fontFamily: FONTS.regular,
     color: COLORS.textSecondary,
   },
   modalDoneButton: {
-    fontSize: SIZES.body1,
+    fontSize: 16,
     fontFamily: FONTS.semiBold,
     color: COLORS.primary,
   },
   dateTimePicker: {
     height: 200,
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.white, // Ensure white bg
     width: '100%',
   },
   dateText: {
     flex: 1,
-    fontSize: SIZES.body1,
-    fontFamily: FONTS.regular,
+    fontSize: 16,
+    fontFamily: FONTS.medium,
     color: COLORS.text,
   },
   placeholderText: {
     color: COLORS.textLight,
   },
-    color: COLORS.text,
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: SIZES.body1,
-    fontFamily: FONTS.regular,
-    color: COLORS.textSecondary,
-    marginBottom: 32,
-    lineHeight: 24,
-  },
-  inputGroup: {
-    marginBottom: 24,
-  },
-  label: {
-    fontSize: SIZES.body1,
-    fontFamily: FONTS.semiBold,
-    color: COLORS.text,
-    marginBottom: 12,
-  },
-  optionalText: {
-    fontSize: SIZES.body2,
-    fontFamily: FONTS.regular,
-    color: COLORS.textLight,
-  },
-  inputContainer: {
+  warningContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.grayLight,
-    borderRadius: SIZES.radius,
-    paddingHorizontal: 16,
-    height: 56,
-  },
-  inputIcon: {
-    marginRight: 12,
-  },
-  input: {
-    flex: 1,
-    fontSize: SIZES.body1,
-    fontFamily: FONTS.regular,
-    color: COLORS.text,
-  },
-  bioContainer: {
-    height: 120,
-    alignItems: 'flex-start',
-    paddingVertical: 16,
-  },
-  bioInput: {
-    height: '100%',
-  },
-  charCount: {
-    fontSize: SIZES.body3,
-    fontFamily: FONTS.regular,
-    color: COLORS.textLight,
-    textAlign: 'right',
-    marginTop: 4,
-  },
-  genderContainer: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  genderButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.grayLight,
-    borderRadius: SIZES.radius,
-    paddingVertical: 20,
+    marginTop: 12,
+    paddingHorizontal: 4,
     gap: 8,
-    position: 'relative',
   },
-  genderButtonSelected: {
-    backgroundColor: COLORS.primary,
-  },
-  genderText: {
-    fontSize: SIZES.body1,
+  warningText: {
+    flex: 1,
+    fontSize: 12,
     fontFamily: FONTS.medium,
-    color: COLORS.textSecondary,
-  },
-  genderTextSelected: {
-    color: COLORS.white,
-  },
-  genderCheck: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-  },
-  tipsContainer: {
-    flexDirection: 'row',
-    backgroundColor: COLORS.backgroundLight,
-    borderRadius: SIZES.radius,
-    padding: 16,
-    gap: 12,
-    marginTop: 8,
-  },
-  tipsContent: {
-    flex: 1,
-  },
-  tipsTitle: {
-    fontSize: SIZES.body2,
-    fontFamily: FONTS.semiBold,
-    color: COLORS.text,
-    marginBottom: 8,
-  },
-  tipText: {
-    fontSize: SIZES.body3,
-    fontFamily: FONTS.regular,
-    color: COLORS.textSecondary,
-    lineHeight: 20,
-    marginBottom: 4,
-  },
-  footer: {
-    paddingHorizontal: SIZES.padding,
-    paddingBottom: 40,
-  },
-  continueButton: {
-    flexDirection: 'row',
-    backgroundColor: COLORS.primary,
-    borderRadius: SIZES.radius,
-    paddingVertical: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    ...SHADOWS.medium,
-  },
-  disabledButton: {
-    backgroundColor: COLORS.gray,
-    opacity: 0.5,
-  },
-  continueButtonText: {
-    fontSize: SIZES.h4,
-    fontFamily: FONTS.semiBold,
-    color: COLORS.white,
+    color: COLORS.warning,
+    lineHeight: 18,
   },
 });

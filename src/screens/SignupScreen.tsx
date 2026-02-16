@@ -10,10 +10,14 @@ import {
   ScrollView,
   StatusBar,
 } from 'react-native';
+import { StackScreenProps } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
+import { RootStackParamList } from '../types';
 
-export default function SignupScreen({ navigation }) {
+type Props = StackScreenProps<RootStackParamList, 'Signup'>;
+
+export default function SignupScreen({ navigation }: Props) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -22,11 +26,11 @@ export default function SignupScreen({ navigation }) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const isValidEmail = (email) => {
+  const isValidEmail = (email: string) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   };
 
-  const isFormValid = () => {
+  const isFormValid = (): boolean => {
     return (
       name.trim() !== '' &&
       email.trim() !== '' &&
@@ -43,7 +47,7 @@ export default function SignupScreen({ navigation }) {
     }
   };
 
-  const handleSocialSignup = (provider) => {
+  const handleSocialSignup = (provider: string) => {
     // TODO: Implement social signup
     console.log(`Signup with ${provider}`);
   };

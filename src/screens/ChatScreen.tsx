@@ -12,10 +12,19 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { StackScreenProps } from '@react-navigation/stack';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
+import { RootStackParamList } from '../types';
+
+interface Message {
+  id: string;
+  text: string;
+  senderId: string;
+  timestamp: Date;
+}
 
 // Mock messages
-const MOCK_MESSAGES = [
+const MOCK_MESSAGES: Message[] = [
   {
     id: '1',
     text: 'Hey! How are you?',
@@ -42,11 +51,13 @@ const MOCK_MESSAGES = [
   },
 ];
 
-export default function ChatScreen({ navigation, route }) {
+type Props = StackScreenProps<RootStackParamList, 'Chat'>;
+
+export default function ChatScreen({ navigation, route }: Props) {
   const { match } = route.params;
-  const [messages, setMessages] = useState(MOCK_MESSAGES);
+  const [messages, setMessages] = useState<Message[]>(MOCK_MESSAGES);
   const [inputText, setInputText] = useState('');
-  const flatListRef = useRef(null);
+  const flatListRef = useRef<FlatList<Message>>(null);
   const currentUserId = '1'; // Mock current user ID
 
   useEffect(() => {

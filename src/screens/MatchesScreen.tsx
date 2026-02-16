@@ -7,17 +7,24 @@ import {
   TouchableOpacity,
   Image,
   StatusBar,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { createStackNavigator } from '@react-navigation/stack';
+import { createStackNavigator, StackScreenProps } from '@react-navigation/stack';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
 import ChatScreen from './ChatScreen';
+import { Match } from '../types';
 
-const Stack = createStackNavigator();
+export type MatchesStackParamList = {
+  MatchesList: undefined;
+  Chat: { match: Match };
+};
+
+const Stack = createStackNavigator<MatchesStackParamList>();
 
 
 // Mock matches data
-const MOCK_MATCHES = [
+const MOCK_MATCHES: Match[] = [
   {
     id: '1',
     name: 'Sarah',
@@ -47,11 +54,13 @@ const MOCK_MATCHES = [
   },
 ];
 
-function MatchesListScreen({ navigation }) {
-  const [matches, setMatches] = useState(MOCK_MATCHES);
-  const [activeTab, setActiveTab] = useState('matches');
+type MatchesListProps = StackScreenProps<MatchesStackParamList, 'MatchesList'>;
 
-  const renderMatch = ({ item }) => (
+function MatchesListScreen({ navigation }: MatchesListProps) {
+  const [matches, setMatches] = useState<Match[]>(MOCK_MATCHES);
+  const [activeTab, setActiveTab] = useState<'matches' | 'likes'>('matches');
+
+  const renderMatch = ({ item }: { item: Match }) => (
     <TouchableOpacity
       style={styles.matchCard}
       onPress={() => navigation.navigate('Chat', { match: item })}

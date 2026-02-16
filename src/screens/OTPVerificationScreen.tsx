@@ -14,18 +14,23 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export default function OTPVerificationScreen({ navigation, route }) {
-  const { method } = route.params; // 'email' or 'phone'
-  const [contact, setContact] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
-  const [otp, setOtp] = useState(['', '', '', '', '', '']);
-  const otpInputs = useRef([]);
+import { RootStackParamList } from '../types';
+import { StackScreenProps } from '@react-navigation/stack';
 
-  const isValidEmail = (email) => {
+type Props = StackScreenProps<RootStackParamList, 'OTPVerification'>;
+
+export default function OTPVerificationScreen({ navigation, route }: Props) {
+  const { method } = route.params; // 'email' or 'phone'
+  const [contact, setContact] = useState<string>('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [otp, setOtp] = useState<string[]>(['', '', '', '', '', '']);
+  const otpInputs = useRef<(TextInput | null)[]>([]);
+
+  const isValidEmail = (email: string) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   };
 
-  const isValidPhone = (phone) => {
+  const isValidPhone = (phone: string) => {
     return /^\d{10,}$/.test(phone.replace(/[\s-]/g, ''));
   };
 
@@ -46,7 +51,7 @@ export default function OTPVerificationScreen({ navigation, route }) {
     Alert.alert('OTP Sent', `A verification code has been sent to your ${method}`);
   };
 
-  const handleOtpChange = (value, index) => {
+  const handleOtpChange = (value: string, index: number) => {
     const newOtp = [...otp];
     newOtp[index] = value;
     setOtp(newOtp);
@@ -57,7 +62,7 @@ export default function OTPVerificationScreen({ navigation, route }) {
     }
   };
 
-  const handleOtpKeyPress = (e, index) => {
+  const handleOtpKeyPress = (e: any, index: number) => {
     if (e.nativeEvent.key === 'Backspace' && !otp[index] && index > 0) {
       otpInputs.current[index - 1]?.focus();
     }

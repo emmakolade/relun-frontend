@@ -9,12 +9,17 @@ import {
   Platform,
   ScrollView,
   StatusBar,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { StackScreenProps } from '@react-navigation/stack';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { RootStackParamList } from '../types';
 
-export default function LoginScreen({ navigation }) {
+type Props = StackScreenProps<RootStackParamList, 'Login'>;
+
+export default function LoginScreen({ navigation }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -47,7 +52,7 @@ export default function LoginScreen({ navigation }) {
     }
   };
 
-  const handleSocialLogin = (provider) => {
+  const handleSocialLogin = (provider: string) => {
     // TODO: Implement social login
     console.log(`Login with ${provider}`);
   };
@@ -158,32 +163,40 @@ export default function LoginScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.background, // Should be off-white now
   },
   scrollContent: {
     flexGrow: 1,
-    padding: SIZES.padding,
+    paddingHorizontal: SIZES.padding,
+    paddingTop: SIZES.padding * 2,
+    paddingBottom: SIZES.padding,
   },
   header: {
-    marginTop: 40,
-    marginBottom: 40,
+    marginTop: 20,
+    marginBottom: 48,
   },
   backButton: {
-    width: 40,
-    height: 40,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: COLORS.white,
     justifyContent: 'center',
-    marginBottom: 20,
+    alignItems: 'center',
+    marginBottom: 32,
+    ...SHADOWS.small,
   },
   title: {
-    fontSize: SIZES.h1,
+    fontSize: 42, // Larger
     fontFamily: FONTS.bold,
     color: COLORS.text,
-    marginBottom: 8,
+    marginBottom: 12,
+    letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: SIZES.body1,
+    fontSize: SIZES.large,
     fontFamily: FONTS.regular,
     color: COLORS.textSecondary,
+    lineHeight: 24,
   },
   form: {
     marginBottom: 24,
@@ -191,86 +204,102 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.grayLight,
+    backgroundColor: COLORS.white, // White input on off-white background
     borderRadius: SIZES.radius,
-    paddingHorizontal: 16,
-    marginBottom: 16,
-    height: 56,
+    paddingHorizontal: 20,
+    marginBottom: 20, // More spacing
+    height: 64, // Taller touch target
+    borderWidth: 1,
+    borderColor: 'transparent',
+    ...SHADOWS.small, // Subtle lift
   },
+  // Focused state handling would need state, but this is a static style update
   inputIcon: {
-    marginRight: 12,
+    marginRight: 16,
+    opacity: 0.5,
   },
   input: {
     flex: 1,
-    fontSize: SIZES.body1,
-    fontFamily: FONTS.regular,
+    fontSize: SIZES.medium,
+    fontFamily: FONTS.medium,
     color: COLORS.text,
+    height: '100%',
   },
   forgotPassword: {
     alignSelf: 'flex-end',
-    marginBottom: 24,
+    marginBottom: 32,
   },
   forgotPasswordText: {
-    fontSize: SIZES.body2,
+    fontSize: SIZES.font,
     fontFamily: FONTS.medium,
-    color: COLORS.primary,
+    color: COLORS.textSecondary, // Less aggressive than primary color
   },
   loginButton: {
     backgroundColor: COLORS.primary,
-    borderRadius: SIZES.radius,
-    paddingVertical: 18,
+    borderRadius: SIZES.radiusLarge, // Pill shape
+    paddingVertical: 20,
     alignItems: 'center',
+    justifyContent: 'center',
     ...SHADOWS.medium,
+    shadowColor: COLORS.primary, // Colored shadow
+    shadowOpacity: 0.3,
   },
   loginButtonText: {
-    fontSize: SIZES.h4,
+    fontSize: SIZES.large,
     fontFamily: FONTS.semiBold,
     color: COLORS.white,
+    letterSpacing: 0.5,
   },
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 32,
+    marginVertical: 40,
   },
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: COLORS.gray,
+    backgroundColor: COLORS.border,
   },
   dividerText: {
-    fontSize: SIZES.body3,
-    fontFamily: FONTS.regular,
+    fontSize: SIZES.font,
+    fontFamily: FONTS.medium,
     color: COLORS.textLight,
     marginHorizontal: 16,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   socialButtons: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 16,
+    gap: 24, // Wider gap
   },
   socialButton: {
     width: 64,
     height: 64,
-    borderRadius: SIZES.radius,
-    backgroundColor: COLORS.grayLight,
+    borderRadius: 32, // Perfect circle
+    backgroundColor: COLORS.white,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
     ...SHADOWS.small,
   },
   signupContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 'auto',
-    paddingTop: 20,
+    alignItems: 'center',
+    marginTop: 'auto', // Push to bottom if space allows
+    paddingVertical: 32,
   },
   signupText: {
-    fontSize: SIZES.body2,
+    fontSize: SIZES.font,
     fontFamily: FONTS.regular,
     color: COLORS.textSecondary,
+    marginRight: 8,
   },
   signupLink: {
-    fontSize: SIZES.body2,
-    fontFamily: FONTS.semiBold,
+    fontSize: SIZES.font,
+    fontFamily: FONTS.bold,
     color: COLORS.primary,
   },
 });

@@ -5,8 +5,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CommonActions } from '@react-navigation/native';
+import { StackScreenProps } from '@react-navigation/stack';
+import { RootStackParamList } from '../types';
 
-export default function WelcomeScreen({ navigation }) {
+type Props = StackScreenProps<RootStackParamList, 'Welcome'>;
+
+export default function WelcomeScreen({ navigation }: Props) {
   useEffect(() => {
     // Check if user is already logged in when screen mounts
     checkIfLoggedIn();
@@ -53,19 +57,19 @@ export default function WelcomeScreen({ navigation }) {
             <TouchableOpacity
               style={styles.continueButton}
               onPress={() => navigation.navigate('OTPVerification', { method: 'email' })}
-              activeOpacity={0.8}
+              activeOpacity={0.9}
             >
-              <Ionicons name="mail-outline" size={24} color={COLORS.primary} style={styles.buttonIcon} />
+              <Ionicons name="mail" size={20} color={COLORS.primary} style={styles.buttonIcon} />
               <Text style={styles.continueButtonText}>Continue with Email</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.continueButton}
+              style={styles.secondaryButton}
               onPress={() => navigation.navigate('OTPVerification', { method: 'phone' })}
-              activeOpacity={0.8}
+              activeOpacity={0.7}
             >
-              <Ionicons name="call-outline" size={24} color={COLORS.primary} style={styles.buttonIcon} />
-              <Text style={styles.continueButtonText}>Continue with Phone</Text>
+              <Ionicons name="call" size={20} color={COLORS.white} style={styles.buttonIcon} />
+              <Text style={styles.secondaryButtonText}>Continue with Phone</Text>
             </TouchableOpacity>
 
             <Text style={styles.termsText}>
@@ -88,46 +92,52 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     justifyContent: 'space-between',
-    paddingVertical: 60,
+    paddingVertical: SIZES.height > 800 ? SIZES.padding * 2 : SIZES.padding,
     paddingHorizontal: SIZES.padding,
   },
   logoSection: {
     alignItems: 'center',
-    marginTop: 80,
+    marginTop: SIZES.height > 800 ? 80 : 40,
   },
   logoContainer: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    width: 120,
+    height: 120,
+    borderRadius: 40, // Modern squircle
+    backgroundColor: 'rgba(255, 255, 255, 0.15)', // More subtle glass
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: SIZES.margin,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   appName: {
-    fontSize: 56,
+    fontSize: 48,
     fontFamily: FONTS.logo,
     color: COLORS.white,
-    marginBottom: 8,
-    letterSpacing: 1,
+    marginBottom: SIZES.base,
+    letterSpacing: 2,
+    textShadowColor: 'rgba(0,0,0,0.1)',
+    textShadowOffset: { width: 0, height: 4 },
+    textShadowRadius: 12,
   },
   tagline: {
-    fontSize: SIZES.h5,
-    fontFamily: FONTS.regular,
-    color: COLORS.white,
-    opacity: 0.9,
+    fontSize: SIZES.body1,
+    fontFamily: FONTS.medium,
+    color: 'rgba(255, 255, 255, 0.9)',
+    letterSpacing: 0.5,
   },
   bottomSection: {
     alignItems: 'center',
+    paddingBottom: SIZES.padding,
   },
   description: {
-    fontSize: SIZES.body1,
+    fontSize: SIZES.body2,
     fontFamily: FONTS.regular,
-    color: COLORS.white,
+    color: 'rgba(255, 255, 255, 0.8)',
     textAlign: 'center',
-    marginBottom: 32,
-    opacity: 0.95,
-    paddingHorizontal: 20,
+    marginBottom: SIZES.margin * 1.5,
+    lineHeight: 24,
+    paddingHorizontal: SIZES.padding,
   },
   continueButton: {
     flexDirection: 'row',
@@ -135,27 +145,44 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: COLORS.white,
     paddingVertical: 18,
-    paddingHorizontal: 32,
+    paddingHorizontal: 24,
     borderRadius: SIZES.radiusLarge,
     width: '100%',
-    marginBottom: 16,
+    marginBottom: SIZES.margin,
     ...SHADOWS.medium,
+  },
+  secondaryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    borderRadius: SIZES.radiusLarge,
+    width: '100%',
+    marginBottom: SIZES.margin,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.5)',
   },
   buttonIcon: {
     marginRight: 12,
   },
   continueButtonText: {
-    fontSize: SIZES.h4,
+    fontSize: SIZES.body1,
     fontFamily: FONTS.semiBold,
-    color: COLORS.primary,
+    color: COLORS.primary, // Coral color text
+  },
+  secondaryButtonText: {
+    fontSize: SIZES.body1,
+    fontFamily: FONTS.semiBold,
+    color: COLORS.white,
   },
   termsText: {
-    fontSize: SIZES.body3,
+    fontSize: 12,
     fontFamily: FONTS.regular,
-    color: COLORS.white,
+    color: 'rgba(255, 255, 255, 0.6)',
     textAlign: 'center',
-    marginTop: 16,
-    opacity: 0.8,
-    paddingHorizontal: 20,
+    marginTop: SIZES.base,
+    paddingHorizontal: SIZES.padding,
   },
 });

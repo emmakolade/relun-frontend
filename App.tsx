@@ -14,7 +14,7 @@
  * - `createStackNavigator` - Creates a stack-based navigation pattern for screen transitions
  * - `AsyncStorage` - Persistent key-value storage for saving user authentication tokens
  * - `useFonts` - Expo hook for loading custom fonts asynchronously
- * - `Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold, Poppins_700Bold` - Poppins font family variants
+ * - `Outfit_400Regular, Outfit_500Medium, Outfit_600SemiBold, Outfit_700Bold` - Outfit font family variants
  * - `Pacifico_400Regular` - Pacifico font family for decorative text
  * - `WelcomeScreen` - Initial screen shown to unauthenticated users
  * - `LoginScreen` - Screen for user authentication
@@ -31,18 +31,23 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppState } from 'react-native';
-import { useFonts, Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold, Poppins_700Bold } from '@expo-google-fonts/poppins';
+import { useFonts } from 'expo-font';
+import { Outfit_400Regular, Outfit_500Medium, Outfit_600SemiBold, Outfit_700Bold } from '@expo-google-fonts/outfit';
 import { Pacifico_400Regular } from '@expo-google-fonts/pacifico';
+
+import { RootStackParamList } from './src/types';
 
 // Screens
 import WelcomeScreen from './src/screens/WelcomeScreen';
+import LoginScreen from './src/screens/LoginScreen';
+import SignupScreen from './src/screens/SignupScreen';
 import OTPVerificationScreen from './src/screens/OTPVerificationScreen';
 import SegmentSelectionScreen from './src/screens/SegmentSelectionScreen';
 import ProfileCreationScreen from './src/screens/ProfileCreationScreen';
 import PhotoUploadScreen from './src/screens/PhotoUploadScreen';
 import MainNavigator from './src/navigation/MainNavigator';
 
-const Stack = createStackNavigator();
+const Stack = createStackNavigator<RootStackParamList>();
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -50,10 +55,10 @@ export default function App() {
   const [refreshKey, setRefreshKey] = useState(0);
 
   let [fontsLoaded] = useFonts({
-    Poppins_400Regular,
-    Poppins_500Medium,
-    Poppins_600SemiBold,
-    Poppins_700Bold,
+    Outfit_400Regular,
+    Outfit_500Medium,
+    Outfit_600SemiBold,
+    Outfit_700Bold,
     Pacifico_400Regular,
   });
 
@@ -98,12 +103,15 @@ export default function App() {
       <Stack.Navigator
         screenOptions={{
           headerShown: false,
-          cardStyle: { backgroundColor: '#FFFFFF' },
+          cardStyle: { backgroundColor: '#FAFAFA' }, // Updated default background
         }}
+        initialRouteName="Welcome"
       >
         {!isLoggedIn ? (
           <>
             <Stack.Screen name="Welcome" component={WelcomeScreen} />
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="Signup" component={SignupScreen} />
             <Stack.Screen name="OTPVerification" component={OTPVerificationScreen} />
             <Stack.Screen name="SegmentSelection" component={SegmentSelectionScreen} />
             <Stack.Screen name="ProfileCreation" component={ProfileCreationScreen} />

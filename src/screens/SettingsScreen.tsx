@@ -11,10 +11,15 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { StackScreenProps } from '@react-navigation/stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
+import { ProfileStackParamList } from './ProfileScreen'; // Importing from ProfileScreen if exported, or just redefine
 
-export default function SettingsScreen({ navigation, route }) {
+// Since ProfileStackParamList might be local, let's define the prop type generically or assuming structure
+type Props = StackScreenProps<any, 'Settings'>;
+
+export default function SettingsScreen({ navigation }: Props) {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [locationEnabled, setLocationEnabled] = useState(true);
   const [showOnlineStatus, setShowOnlineStatus] = useState(true);
