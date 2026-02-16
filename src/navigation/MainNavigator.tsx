@@ -25,7 +25,8 @@ export default function MainNavigator() {
         tabBarInactiveTintColor: '#9E9E9E',
         tabBarStyle: {
           position: 'absolute', // Floating effect
-          bottom: Platform.OS === 'ios' ? 24 : 16,
+          // Adjusted bottom spacing to account for Android navigation bar
+          bottom: Platform.OS === 'ios' ? 24 : 16 + insets.bottom,
           left: 20,
           right: 20,
           backgroundColor: COLORS.white,
@@ -46,15 +47,14 @@ export default function MainNavigator() {
           padding: 0,
         },
         tabBarIcon: ({ focused, color, size }) => {
-          let iconName;
-
-          if (route.name === 'Swipe') {
-            iconName = focused ? 'heart' : 'heart-outline'; // Changed to Heart for dating context
-          } else if (route.name === 'Matches') {
-            iconName = focused ? 'chatbubble-ellipses' : 'chatbubble-ellipses-outline';
-          } else if (route.name === 'Profile') {
-            iconName = focused ? 'person' : 'person-outline';
-          }
+          let iconName: keyof typeof Ionicons.glyphMap =
+            route.name === 'Swipe'
+              ? (focused ? 'heart' : 'heart-outline')
+              : route.name === 'Matches'
+              ? (focused ? 'chatbubble-ellipses' : 'chatbubble-ellipses-outline')
+              : route.name === 'Profile'
+              ? (focused ? 'person' : 'person-outline')
+              : 'ellipse'; // Default fallback icon
 
           // Active indicator (dot or specialized styling) could go here
           return (
