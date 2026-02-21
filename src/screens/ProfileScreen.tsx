@@ -11,13 +11,48 @@ import {
   Platform,
   Modal,
   Dimensions,
+  FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { createStackNavigator, StackScreenProps } from '@react-navigation/stack';
+import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
 import SettingsScreen from './SettingsScreen';
+
+const { width, height } = Dimensions.get('window');
+
+// Mock data for likes and views
+const MOCK_LIKES = [
+  { id: '1', name: 'Emma', age: 26, photo: 'https://randomuser.me/api/portraits/women/2.jpg' },
+  { id: '2', name: 'Sophia', age: 24, photo: 'https://randomuser.me/api/portraits/women/8.jpg' },
+  { id: '3', name: 'Olivia', age: 25, photo: 'https://randomuser.me/api/portraits/women/6.jpg' },
+  { id: '4', name: 'Ava', age: 23, photo: 'https://randomuser.me/api/portraits/women/9.jpg' },
+  { id: '5', name: 'Mia', age: 27, photo: 'https://randomuser.me/api/portraits/women/11.jpg' },
+  { id: '6', name: 'Isabella', age: 25, photo: 'https://randomuser.me/api/portraits/women/13.jpg' },
+  { id: '7', name: 'Charlotte', age: 28, photo: 'https://randomuser.me/api/portraits/women/15.jpg' },
+  { id: '8', name: 'Amelia', age: 26, photo: 'https://randomuser.me/api/portraits/women/17.jpg' },
+  { id: '9', name: 'Harper', age: 23, photo: 'https://randomuser.me/api/portraits/women/19.jpg' },
+  { id: '10', name: 'Evelyn', age: 27, photo: 'https://randomuser.me/api/portraits/women/21.jpg' },
+  { id: '11', name: 'Abigail', age: 24, photo: 'https://randomuser.me/api/portraits/women/23.jpg' },
+  { id: '12', name: 'Emily', age: 25, photo: 'https://randomuser.me/api/portraits/women/25.jpg' },
+];
+
+const MOCK_VIEWS = [
+  { id: '1', name: 'Sarah', age: 28, photo: 'https://randomuser.me/api/portraits/women/1.jpg' },
+  { id: '2', name: 'Jessica', age: 29, photo: 'https://randomuser.me/api/portraits/women/3.jpg' },
+  ...MOCK_LIKES,
+  { id: '13', name: 'Luna', age: 22, photo: 'https://randomuser.me/api/portraits/women/27.jpg' },
+  { id: '14', name: 'Chloe', age: 26, photo: 'https://randomuser.me/api/portraits/women/29.jpg' },
+  { id: '15', name: 'Penelope', age: 24, photo: 'https://randomuser.me/api/portraits/women/31.jpg' },
+  { id: '16', name: 'Layla', age: 25, photo: 'https://randomuser.me/api/portraits/women/33.jpg' },
+  { id: '17', name: 'Riley', age: 23, photo: 'https://randomuser.me/api/portraits/women/35.jpg' },
+  { id: '18', name: 'Zoey', age: 27, photo: 'https://randomuser.me/api/portraits/women/37.jpg' },
+  { id: '19', name: 'Nora', age: 26, photo: 'https://randomuser.me/api/portraits/women/39.jpg' },
+  { id: '20', name: 'Lily', age: 24, photo: 'https://randomuser.me/api/portraits/women/41.jpg' },
+  // ... more can be added
+];
 
 const { width, height } = Dimensions.get('window');
 
@@ -40,6 +75,7 @@ interface UserProfile {
 }
 
 function ProfileViewScreen({ navigation }: ProfileViewProps) {
+  const rootNavigation = useNavigation<any>();
   const [profile, setProfile] = useState<UserProfile>({
     name: 'John',
     age: '28',
@@ -50,6 +86,12 @@ function ProfileViewScreen({ navigation }: ProfileViewProps) {
   });
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
   const [isPhotoModalVisible, setIsPhotoModalVisible] = useState(false);
+  const [coinBalance, setCoinBalance] = useState(100); // Mock balance
+  const [showLikesModal, setShowLikesModal] = useState(false);
+  const [showViewsModal, setShowViewsModal] = useState(false);
+
+  const LIKES_COST = 10;
+  const VIEWS_COST = 5;
 
   useEffect(() => {
     loadProfile();
@@ -191,6 +233,62 @@ function ProfileViewScreen({ navigation }: ProfileViewProps) {
     );
   };
 
+  const handleViewLikes = () => {
+    if (coinBalance >= LIKES_COST) {
+      Alert.alert(
+        'View Likes',
+        `Spend ${LIKES_COST} coins to see who liked you?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Yes, Show Me!', 
+            onPress: () => {
+              setCoinBalance(prev => prev - LIKES_COST);
+              setShowLikesModal(true);
+            }
+          }
+        ]
+      );
+    } else {
+      Alert.alert(
+        'Not Enough Coins',
+        `You need ${LIKES_COST} coins to see who liked you. Get more coins?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Get Coins', onPress: () => rootNavigation.navigate('GetCoins') }
+        ]
+      );
+    }
+  };
+
+  const handleViewViews = () => {
+    if (coinBalance >= VIEWS_COST) {
+      Alert.alert(
+        'View Profile Views',
+        `Spend ${VIEWS_COST} coins to see who viewed your profile?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Yes, Show Me!', 
+            onPress: () => {
+              setCoinBalance(prev => prev - VIEWS_COST);
+              setShowViewsModal(true);
+            }
+          }
+        ]
+      );
+    } else {
+      Alert.alert(
+        'Not Enough Coins',
+        `You need ${VIEWS_COST} coins to see who viewed your profile. Get more coins?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Get Coins', onPress: () => rootNavigation.navigate('GetCoins') }
+        ]
+      );
+    }
+  };
+
   const menuItems = [
     {
       icon: 'card-outline',
@@ -264,20 +362,17 @@ function ProfileViewScreen({ navigation }: ProfileViewProps) {
           )}
 
           <View style={styles.statsContainer}>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>0</Text>
-              <Text style={styles.statLabel}>Matches</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>0</Text>
+            <TouchableOpacity style={styles.statItem} onPress={() => handleViewLikes()}>
+              <Text style={styles.statValue}>{MOCK_LIKES.length}</Text>
               <Text style={styles.statLabel}>Likes</Text>
-            </View>
+              <Text style={styles.statCost}>{LIKES_COST} 🪙</Text>
+            </TouchableOpacity>
             <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>0</Text>
+            <TouchableOpacity style={styles.statItem} onPress={() => handleViewViews()}>
+              <Text style={styles.statValue}>{MOCK_VIEWS.length}</Text>
               <Text style={styles.statLabel}>Views</Text>
-            </View>
+              <Text style={styles.statCost}>{VIEWS_COST} 🪙</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -404,6 +499,104 @@ function ProfileViewScreen({ navigation }: ProfileViewProps) {
               <Ionicons name="trash-outline" size={24} color={COLORS.error} />
               <Text style={[styles.modalActionText, { color: COLORS.error }]}>Delete</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Likes Modal */}
+      <Modal
+        visible={showLikesModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowLikesModal(false)}
+      >
+        <View style={styles.likesModalOverlay}>
+          <View style={styles.likesModalContent}>
+            <View style={styles.likesModalHeader}>
+              <Text style={styles.likesModalTitle}>Who Liked You 💕</Text>
+              <TouchableOpacity onPress={() => setShowLikesModal(false)}>
+                <Ionicons name="close" size={28} color={COLORS.text} />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={MOCK_LIKES}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <TouchableOpacity 
+                  style={styles.likeItem}
+                  onPress={() => {
+                    setShowLikesModal(false);
+                    rootNavigation.navigate('ProfileView', { 
+                      user: { 
+                        id: item.id, 
+                        name: item.name, 
+                        age: item.age, 
+                        photos: [item.photo], 
+                        bio: 'Interested in you!', 
+                        segment: 'relationship' 
+                      } 
+                    });
+                  }}
+                >
+                  <Image source={{ uri: item.photo }} style={styles.likeAvatar} />
+                  <View style={styles.likeInfo}>
+                    <Text style={styles.likeName}>{item.name}, {item.age}</Text>
+                    <Text style={styles.likeSubtext}>Waved at you</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
+                </TouchableOpacity>
+              )}
+              showsVerticalScrollIndicator={false}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* Views Modal */}
+      <Modal
+        visible={showViewsModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowViewsModal(false)}
+      >
+        <View style={styles.likesModalOverlay}>
+          <View style={styles.likesModalContent}>
+            <View style={styles.likesModalHeader}>
+              <Text style={styles.likesModalTitle}>Profile Views 👀</Text>
+              <TouchableOpacity onPress={() => setShowViewsModal(false)}>
+                <Ionicons name="close" size={28} color={COLORS.text} />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={MOCK_VIEWS}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <TouchableOpacity 
+                  style={styles.likeItem}
+                  onPress={() => {
+                    setShowViewsModal(false);
+                    rootNavigation.navigate('ProfileView', { 
+                      user: { 
+                        id: item.id, 
+                        name: item.name, 
+                        age: item.age, 
+                        photos: [item.photo], 
+                        bio: 'Checked out your profile!', 
+                        segment: 'fun' 
+                      } 
+                    });
+                  }}
+                >
+                  <Image source={{ uri: item.photo }} style={styles.likeAvatar} />
+                  <View style={styles.likeInfo}>
+                    <Text style={styles.likeName}>{item.name}, {item.age}</Text>
+                    <Text style={styles.likeSubtext}>Viewed your profile</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
+                </TouchableOpacity>
+              )}
+              showsVerticalScrollIndicator={false}
+            />
           </View>
         </View>
       </Modal>
