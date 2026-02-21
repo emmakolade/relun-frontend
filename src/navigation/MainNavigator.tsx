@@ -7,7 +7,9 @@ import { COLORS, SHADOWS } from '../constants/theme';
 import { MainTabParamList } from '../types';
 
 // Screens
-import SwipeScreen from '../screens/SwipeScreen';
+import FeedScreen from '../screens/FeedScreen';
+import DateRequestScreen from '../screens/DateRequestScreen';
+import GetCoinsScreen from '../screens/GetCoinsScreen';
 import MatchesScreen from '../screens/MatchesScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 
@@ -48,8 +50,12 @@ export default function MainNavigator() {
         },
         tabBarIcon: ({ focused, color, size }) => {
           let iconName: keyof typeof Ionicons.glyphMap =
-            route.name === 'Swipe'
-              ? (focused ? 'heart' : 'heart-outline')
+            route.name === 'Feed'
+              ? (focused ? 'home' : 'home-outline')
+              : route.name === 'DateRequests'
+              ? (focused ? 'calendar' : 'calendar-outline')
+              : route.name === 'GetCoins' 
+              ? (focused ? 'add-circle' : 'add-circle-outline')
               : route.name === 'Matches'
               ? (focused ? 'chatbubble-ellipses' : 'chatbubble-ellipses-outline')
               : route.name === 'Profile'
@@ -82,7 +88,9 @@ export default function MainNavigator() {
         },
       })}
     >
-      <Tab.Screen name="Swipe" component={SwipeScreen} />
+      <Tab.Screen name="Feed" component={FeedScreen} options={{ tabBarLabel: 'Discover' }} />
+      <Tab.Screen name="DateRequests" component={DateRequestScreen} options={{ tabBarLabel: 'Dates' }} />
+      <Tab.Screen name="GetCoins" component={GetCoinsScreen} options={{ tabBarLabel: 'Coins' }} />
       <Tab.Screen name="Matches" component={MatchesScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>

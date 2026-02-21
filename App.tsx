@@ -46,6 +46,9 @@ import SegmentSelectionScreen from './src/screens/SegmentSelectionScreen';
 import ProfileCreationScreen from './src/screens/ProfileCreationScreen';
 import PhotoUploadScreen from './src/screens/PhotoUploadScreen';
 import MainNavigator from './src/navigation/MainNavigator';
+import ChatScreen from './src/screens/ChatScreen';
+import ProfileViewScreen from './src/screens/ProfileViewScreen';
+import GetCoinsScreen from './src/screens/GetCoinsScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
 
@@ -118,7 +121,12 @@ export default function App() {
             <Stack.Screen name="PhotoUpload" component={PhotoUploadScreen} />
           </>
         ) : (
-          <Stack.Screen name="Main" component={MainNavigator} />
+          <>
+            <Stack.Screen name="Main" component={MainNavigator} />
+            <Stack.Screen name="ProfileView" component={ProfileViewScreen} />
+            <Stack.Screen name="Chat" component={ChatScreen} />
+            <Stack.Screen name="GetCoins" component={GetCoinsScreen} />
+          </>
         )}
       </Stack.Navigator>
     </NavigationContainer>

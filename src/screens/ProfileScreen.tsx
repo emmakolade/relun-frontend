@@ -193,6 +193,12 @@ function ProfileViewScreen({ navigation }: ProfileViewProps) {
 
   const menuItems = [
     {
+      icon: 'card-outline',
+      title: 'Get Coins',
+      subtitle: 'Top up your balance',
+      onPress: () => navigation.navigate('GetCoins' as never),
+    },
+    {
       icon: 'create-outline',
       title: 'Edit Profile',
       onPress: () => navigation.navigate('Settings', { section: 'edit' }),

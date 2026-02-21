@@ -192,14 +192,6 @@ export default function SettingsScreen({ navigation }: Props) {
             <Text style={styles.accountItemText}>Privacy Settings</Text>
             <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
           </TouchableOpacity>
-
-          <TouchableOpacity style={styles.accountItem} activeOpacity={0.7}>
-            <Ionicons name="card-outline" size={24} color={COLORS.textSecondary} />
-            <Text style={styles.accountItemText}>Subscription</Text>
-            <View style={styles.premiumTag}>
-              <Text style={styles.premiumTagText}>Premium</Text>
-            </View>
-          </TouchableOpacity>
         </View>
 
         {/* Segment Info */}

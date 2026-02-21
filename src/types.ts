@@ -9,14 +9,39 @@ export type RootStackParamList = {
   Main: undefined;
   Chat: { match: Match };
   Settings: undefined;
-  ProfileView: undefined;
+  ProfileView: { user: User };
+  GetCoins: undefined;
 };
 
 export type MainTabParamList = {
-  Swipe: undefined;
+  Feed: undefined;
+  DateRequests: undefined;
+  GetCoins: undefined;
   Matches: undefined;
   Profile: undefined;
 };
+
+export interface Request {
+  id: string;
+  userId: string;
+  userName: string;
+  userPhoto: string;
+  status: 'pending' | 'accepted' | 'rejected';
+}
+
+export interface DatePost {
+  id: string;
+  userId: string;
+  userName: string;
+  userPhoto: string;
+  age: number;
+  activity: string; 
+  location: string;
+  dateTime: string;
+  description: string;
+  segment: 'relationship' | 'fun';
+  requests?: Request[];
+}
 
 export interface User {
   id: string;

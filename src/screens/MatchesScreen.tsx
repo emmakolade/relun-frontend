@@ -7,21 +7,13 @@ import {
   TouchableOpacity,
   Image,
   StatusBar,
-  Platform,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { createStackNavigator, StackScreenProps } from '@react-navigation/stack';
+import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
-import ChatScreen from './ChatScreen';
-import { Match } from '../types';
-
-export type MatchesStackParamList = {
-  MatchesList: undefined;
-  Chat: { match: Match };
-};
-
-const Stack = createStackNavigator<MatchesStackParamList>();
-
+import { RootStackParamList, Match } from '../types';
 
 // Mock matches data
 const MOCK_MATCHES: Match[] = [
@@ -54,9 +46,10 @@ const MOCK_MATCHES: Match[] = [
   },
 ];
 
-type MatchesListProps = StackScreenProps<MatchesStackParamList, 'MatchesList'>;
+type NavigationProp = StackNavigationProp<RootStackParamList>;
 
-function MatchesListScreen({ navigation }: MatchesListProps) {
+export default function MatchesScreen() {
+  const navigation = useNavigation<NavigationProp>();
   const [matches, setMatches] = useState<Match[]>(MOCK_MATCHES);
   const [activeTab, setActiveTab] = useState<'matches' | 'likes'>('matches');
 
@@ -136,7 +129,7 @@ function MatchesListScreen({ navigation }: MatchesListProps) {
             <Ionicons name="chatbubbles-outline" size={80} color={COLORS.textLight} />
             <Text style={styles.emptyTitle}>No Matches Yet</Text>
             <Text style={styles.emptyText}>
-              Start swiping to find your perfect match!
+              Start a conversation to see your messages here!
             </Text>
           </View>
         )
@@ -144,20 +137,17 @@ function MatchesListScreen({ navigation }: MatchesListProps) {
         // Likes You - Premium Feature
         <View style={styles.premiumContainer}>
           <View style={styles.premiumContent}>
-            <View style={styles.premiumIcon}>
-              <Ionicons name="star" size={60} color={COLORS.primary} />
-            </View>
-            <Text style={styles.premiumTitle}>See Who Likes You</Text>
-            <Text style={styles.premiumText}>
-              Upgrade to see who already swiped right on you
-            </Text>
-            <TouchableOpacity style={styles.premiumButton} activeOpacity={0.8}>
-              <Ionicons name="star" size={20} color={COLORS.white} />
-              <Text style={styles.premiumButtonText}>Upgrade Now</Text>
-            </TouchableOpacity>
-            <Text style={styles.premiumNote}>
-              Only available for Fun segment users
-            </Text>
+             <View style={styles.premiumIcon}>
+               <Ionicons name="heart" size={60} color={COLORS.primary} />
+             </View>
+             <Text style={styles.premiumTitle}>See Who Waves at You</Text>
+             <Text style={styles.premiumText}>
+               See people who are interested in you.
+             </Text>
+             <TouchableOpacity style={styles.premiumButton} activeOpacity={0.8}>
+               <Ionicons name="star" size={20} color={COLORS.white} />
+               <Text style={styles.premiumButtonText}>Get Coins</Text>
+             </TouchableOpacity>
           </View>
         </View>
       )}
@@ -165,20 +155,8 @@ function MatchesListScreen({ navigation }: MatchesListProps) {
   );
 }
 
-export default function MatchesScreen() {
-  return (
-    <Stack.Navigator
-      screenOptions={{
-        headerShown: false,
-      }}
-    >
-      <Stack.Screen name="MatchesList" component={MatchesListScreen} />
-      <Stack.Screen name="Chat" component={ChatScreen} />
-    </Stack.Navigator>
-  );
-}
-
 const styles = StyleSheet.create({
+
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
