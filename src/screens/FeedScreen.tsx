@@ -19,8 +19,8 @@ import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
 import { RootStackParamList, User } from '../types';
 
 const { width } = Dimensions.get('window');
-const TILE_GAP = 12;
-const TILE_WIDTH = (width - 40 - TILE_GAP) / 2; // 2 columns with padding
+const TILE_GAP = 8;
+const TILE_WIDTH = (width - 40 - TILE_GAP * 2) / 3; // 3 columns with padding
 
 // Extended Mock Data
 const MOCK_USERS: User[] = [
@@ -93,6 +93,134 @@ const MOCK_USERS: User[] = [
     age: 24,
     bio: 'Artist 🎨 | Book worm',
     photos: ['https://randomuser.me/api/portraits/women/8.jpg'],
+    segment: 'relationship',
+  },
+  {
+    id: '9',
+    name: 'Ava',
+    age: 23,
+    bio: 'Dancer 💃 | Beach vibes 🏖️',
+    photos: ['https://randomuser.me/api/portraits/women/9.jpg'],
+    segment: 'fun',
+  },
+  {
+    id: '10',
+    name: 'Ethan',
+    age: 29,
+    bio: 'Fitness coach 💪 | Nature lover',
+    photos: ['https://randomuser.me/api/portraits/men/10.jpg'],
+    segment: 'relationship',
+  },
+  {
+    id: '11',
+    name: 'Mia',
+    age: 27,
+    bio: 'Chef 👩‍🍳 | Wine enthusiast 🍷',
+    photos: ['https://randomuser.me/api/portraits/women/11.jpg'],
+    segment: 'relationship',
+  },
+  {
+    id: '12',
+    name: 'Noah',
+    age: 26,
+    bio: 'Musician 🎸 | Night owl 🦉',
+    photos: ['https://randomuser.me/api/portraits/men/12.jpg'],
+    segment: 'fun',
+  },
+  {
+    id: '13',
+    name: 'Isabella',
+    age: 25,
+    bio: 'Fashion designer 👗 | Cat mom 🐱',
+    photos: ['https://randomuser.me/api/portraits/women/13.jpg'],
+    segment: 'relationship',
+  },
+  {
+    id: '14',
+    name: 'Liam',
+    age: 32,
+    bio: 'Architect 🏛️ | Coffee snob',
+    photos: ['https://randomuser.me/api/portraits/men/14.jpg'],
+    segment: 'relationship',
+  },
+  {
+    id: '15',
+    name: 'Charlotte',
+    age: 28,
+    bio: 'Nurse 🏥 | Plant parent 🌿',
+    photos: ['https://randomuser.me/api/portraits/women/15.jpg'],
+    segment: 'relationship',
+  },
+  {
+    id: '16',
+    name: 'Lucas',
+    age: 24,
+    bio: 'DJ 🎧 | Party animal 🎉',
+    photos: ['https://randomuser.me/api/portraits/men/16.jpg'],
+    segment: 'fun',
+  },
+  {
+    id: '17',
+    name: 'Amelia',
+    age: 26,
+    bio: 'Teacher 📚 | Gym rat 🏋️‍♀️',
+    photos: ['https://randomuser.me/api/portraits/women/17.jpg'],
+    segment: 'relationship',
+  },
+  {
+    id: '18',
+    name: 'Mason',
+    age: 28,
+    bio: 'Entrepreneur 💼 | Tech geek',
+    photos: ['https://randomuser.me/api/portraits/men/18.jpg'],
+    segment: 'relationship',
+  },
+  {
+    id: '19',
+    name: 'Harper',
+    age: 23,
+    bio: 'Model 📸 | Wanderlust ✈️',
+    photos: ['https://randomuser.me/api/portraits/women/19.jpg'],
+    segment: 'fun',
+  },
+  {
+    id: '20',
+    name: 'Alexander',
+    age: 30,
+    bio: 'Doctor 🩺 | Sports fanatic ⚽',
+    photos: ['https://randomuser.me/api/portraits/men/20.jpg'],
+    segment: 'relationship',
+  },
+  {
+    id: '21',
+    name: 'Evelyn',
+    age: 27,
+    bio: 'Lawyer ⚖️ | Bookworm 📖',
+    photos: ['https://randomuser.me/api/portraits/women/21.jpg'],
+    segment: 'relationship',
+  },
+  {
+    id: '22',
+    name: 'Daniel',
+    age: 25,
+    bio: 'Bartender 🍸 | Movie buff 🎬',
+    photos: ['https://randomuser.me/api/portraits/men/22.jpg'],
+    segment: 'fun',
+  },
+  {
+    id: '23',
+    name: 'Abigail',
+    age: 24,
+    bio: 'Graphic designer 🎨 | Foodie',
+    photos: ['https://randomuser.me/api/portraits/women/23.jpg'],
+    segment: 'fun',
+  },
+  {
+    id: '24',
+    name: 'Henry',
+    age: 29,
+    bio: 'Pilot ✈️ | Adventure seeker',
+    photos: ['https://randomuser.me/api/portraits/men/24.jpg'],
     segment: 'relationship',
   },
 ];
@@ -203,7 +331,7 @@ export default function FeedScreen() {
           >
             <Ionicons 
               name={isWaved ? "hand-right" : "hand-right-outline"} 
-              size={18} 
+              size={14} 
               color={isWaved ? COLORS.white : COLORS.primary} 
             />
           </TouchableOpacity>
@@ -264,7 +392,7 @@ export default function FeedScreen() {
           data={users}
           renderItem={renderGridItem}
           keyExtractor={(item) => item.id}
-          numColumns={2}
+          numColumns={3}
           columnWrapperStyle={styles.gridRow}
           contentContainerStyle={styles.gridContent}
           showsVerticalScrollIndicator={false}
@@ -426,25 +554,25 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: 80,
+    height: 60,
     justifyContent: 'flex-end',
     alignItems: 'flex-start',
-    padding: 12,
-    paddingBottom: 14,
+    padding: 8,
+    paddingBottom: 10,
   },
   tileName: {
     color: COLORS.white,
-    fontSize: 15,
+    fontSize: 12,
     fontFamily: FONTS.bold,
-    marginRight: 40,
+    marginRight: 28,
   },
   tileWaveButton: {
     position: 'absolute',
-    bottom: 10,
-    right: 10,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    bottom: 6,
+    right: 6,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: COLORS.white,
     justifyContent: 'center',
     alignItems: 'center',
@@ -455,23 +583,23 @@ const styles = StyleSheet.create({
   },
   onlineIndicator: {
     position: 'absolute',
-    top: 10,
-    left: 10,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    top: 6,
+    left: 6,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: '#4CAF50',
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: COLORS.white,
   },
   tileSegmentDot: {
     position: 'absolute',
-    top: 10,
-    right: 10,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    borderWidth: 2,
+    top: 6,
+    right: 6,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    borderWidth: 1.5,
     borderColor: COLORS.white,
   },
 });
