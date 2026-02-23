@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { createStackNavigator, StackScreenProps } from '@react-navigation/stack';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, CommonActions } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
@@ -40,21 +40,19 @@ const MOCK_LIKES = [
 ];
 
 const MOCK_VIEWS = [
-  { id: '1', name: 'Sarah', age: 28, photo: 'https://randomuser.me/api/portraits/women/1.jpg' },
-  { id: '2', name: 'Jessica', age: 29, photo: 'https://randomuser.me/api/portraits/women/3.jpg' },
-  ...MOCK_LIKES,
-  { id: '13', name: 'Luna', age: 22, photo: 'https://randomuser.me/api/portraits/women/27.jpg' },
-  { id: '14', name: 'Chloe', age: 26, photo: 'https://randomuser.me/api/portraits/women/29.jpg' },
-  { id: '15', name: 'Penelope', age: 24, photo: 'https://randomuser.me/api/portraits/women/31.jpg' },
-  { id: '16', name: 'Layla', age: 25, photo: 'https://randomuser.me/api/portraits/women/33.jpg' },
-  { id: '17', name: 'Riley', age: 23, photo: 'https://randomuser.me/api/portraits/women/35.jpg' },
-  { id: '18', name: 'Zoey', age: 27, photo: 'https://randomuser.me/api/portraits/women/37.jpg' },
-  { id: '19', name: 'Nora', age: 26, photo: 'https://randomuser.me/api/portraits/women/39.jpg' },
-  { id: '20', name: 'Lily', age: 24, photo: 'https://randomuser.me/api/portraits/women/41.jpg' },
+  { id: 'v1', name: 'Sarah', age: 28, photo: 'https://randomuser.me/api/portraits/women/1.jpg' },
+  { id: 'v2', name: 'Jessica', age: 29, photo: 'https://randomuser.me/api/portraits/women/3.jpg' },
+  ...MOCK_LIKES.map(like => ({ ...like, id: `v${parseInt(like.id) + 2}` })),
+  { id: 'v15', name: 'Luna', age: 22, photo: 'https://randomuser.me/api/portraits/women/27.jpg' },
+  { id: 'v16', name: 'Chloe', age: 26, photo: 'https://randomuser.me/api/portraits/women/29.jpg' },
+  { id: 'v17', name: 'Penelope', age: 24, photo: 'https://randomuser.me/api/portraits/women/31.jpg' },
+  { id: 'v18', name: 'Layla', age: 25, photo: 'https://randomuser.me/api/portraits/women/33.jpg' },
+  { id: 'v19', name: 'Riley', age: 23, photo: 'https://randomuser.me/api/portraits/women/35.jpg' },
+  { id: 'v20', name: 'Zoey', age: 27, photo: 'https://randomuser.me/api/portraits/women/37.jpg' },
+  { id: 'v21', name: 'Nora', age: 26, photo: 'https://randomuser.me/api/portraits/women/39.jpg' },
+  { id: 'v22', name: 'Lily', age: 24, photo: 'https://randomuser.me/api/portraits/women/41.jpg' },
   // ... more can be added
 ];
-
-const { width, height } = Dimensions.get('window');
 
 export type ProfileStackParamList = {
   ProfileView: undefined;
@@ -89,9 +87,20 @@ function ProfileViewScreen({ navigation }: ProfileViewProps) {
   const [coinBalance, setCoinBalance] = useState(100); // Mock balance
   const [showLikesModal, setShowLikesModal] = useState(false);
   const [showViewsModal, setShowViewsModal] = useState(false);
+  const [insightsSubscriptionExpiry, setInsightsSubscriptionExpiry] = useState<Date | null>(null);
 
-  const LIKES_COST = 10;
-  const VIEWS_COST = 5;
+  const INSIGHTS_MONTHLY_COST = 20;
+
+  const isInsightsActive = () => {
+    if (!insightsSubscriptionExpiry) return false;
+    return new Date() < insightsSubscriptionExpiry;
+  };
+
+  const getDaysRemaining = () => {
+    if (!insightsSubscriptionExpiry) return 0;
+    const diff = insightsSubscriptionExpiry.getTime() - new Date().getTime();
+    return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+  };
 
   useEffect(() => {
     loadProfile();
@@ -233,60 +242,51 @@ function ProfileViewScreen({ navigation }: ProfileViewProps) {
     );
   };
 
-  const handleViewLikes = () => {
-    if (coinBalance >= LIKES_COST) {
-      Alert.alert(
-        'View Likes',
-        `Spend ${LIKES_COST} coins to see who liked you?`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Yes, Show Me!', 
-            onPress: () => {
-              setCoinBalance(prev => prev - LIKES_COST);
-              setShowLikesModal(true);
-            }
-          }
-        ]
-      );
+  const handleSubscribe = (showModal: () => void) => {
+    if (isInsightsActive()) {
+      // Subscription is active, show modal directly
+      showModal();
     } else {
-      Alert.alert(
-        'Not Enough Coins',
-        `You need ${LIKES_COST} coins to see who liked you. Get more coins?`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Get Coins', onPress: () => rootNavigation.navigate('GetCoins') }
-        ]
-      );
+      // Need to subscribe
+      if (coinBalance >= INSIGHTS_MONTHLY_COST) {
+        Alert.alert(
+          'Unlock Insights',
+          `Subscribe for ${INSIGHTS_MONTHLY_COST} coins/month to see who likes you and who views your profile. This unlocks both features for 30 days.`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { 
+              text: 'Subscribe Now!', 
+              onPress: () => {
+                setCoinBalance(prev => prev - INSIGHTS_MONTHLY_COST);
+                const expiryDate = new Date();
+                expiryDate.setDate(expiryDate.getDate() + 30);
+                setInsightsSubscriptionExpiry(expiryDate);
+                Alert.alert('Subscribed!', 'You now have access to Likes and Views for 30 days.', [
+                  { text: 'OK', onPress: showModal }
+                ]);
+              }
+            }
+          ]
+        );
+      } else {
+        Alert.alert(
+          'Not Enough Coins',
+          `You need ${INSIGHTS_MONTHLY_COST} coins to subscribe. Get more coins?`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Get Coins', onPress: () => rootNavigation.navigate('GetCoins') }
+          ]
+        );
+      }
     }
   };
 
+  const handleViewLikes = () => {
+    handleSubscribe(() => setShowLikesModal(true));
+  };
+
   const handleViewViews = () => {
-    if (coinBalance >= VIEWS_COST) {
-      Alert.alert(
-        'View Profile Views',
-        `Spend ${VIEWS_COST} coins to see who viewed your profile?`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Yes, Show Me!', 
-            onPress: () => {
-              setCoinBalance(prev => prev - VIEWS_COST);
-              setShowViewsModal(true);
-            }
-          }
-        ]
-      );
-    } else {
-      Alert.alert(
-        'Not Enough Coins',
-        `You need ${VIEWS_COST} coins to see who viewed your profile. Get more coins?`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Get Coins', onPress: () => rootNavigation.navigate('GetCoins') }
-        ]
-      );
-    }
+    handleSubscribe(() => setShowViewsModal(true));
   };
 
   const menuItems = [
@@ -365,15 +365,37 @@ function ProfileViewScreen({ navigation }: ProfileViewProps) {
             <TouchableOpacity style={styles.statItem} onPress={() => handleViewLikes()}>
               <Text style={styles.statValue}>{MOCK_LIKES.length}</Text>
               <Text style={styles.statLabel}>Likes</Text>
-              <Text style={styles.statCost}>{LIKES_COST} 🪙</Text>
+              {isInsightsActive() ? (
+                <Text style={[styles.statCost, { color: COLORS.success }]}>Unlocked ✓</Text>
+              ) : (
+                <Text style={styles.statCost}>Tap to unlock</Text>
+              )}
             </TouchableOpacity>
             <View style={styles.statDivider} />
             <TouchableOpacity style={styles.statItem} onPress={() => handleViewViews()}>
               <Text style={styles.statValue}>{MOCK_VIEWS.length}</Text>
               <Text style={styles.statLabel}>Views</Text>
-              <Text style={styles.statCost}>{VIEWS_COST} 🪙</Text>
+              {isInsightsActive() ? (
+                <Text style={[styles.statCost, { color: COLORS.success }]}>Unlocked ✓</Text>
+              ) : (
+                <Text style={styles.statCost}>Tap to unlock</Text>
+              )}
             </TouchableOpacity>
           </View>
+          {isInsightsActive() && (
+            <View style={styles.subscriptionBadge}>
+              <Text style={styles.subscriptionText}>
+                Insights active • {getDaysRemaining()} days remaining
+              </Text>
+            </View>
+          )}
+          {!isInsightsActive() && (
+            <View style={[styles.subscriptionBadge, { backgroundColor: COLORS.grayLight }]}>
+              <Text style={[styles.subscriptionText, { color: COLORS.textSecondary }]}>
+                Unlock Likes & Views for {INSIGHTS_MONTHLY_COST} 🪙/month
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Photos Grid */}
@@ -526,16 +548,21 @@ function ProfileViewScreen({ navigation }: ProfileViewProps) {
                   style={styles.likeItem}
                   onPress={() => {
                     setShowLikesModal(false);
-                    rootNavigation.navigate('ProfileView', { 
-                      user: { 
-                        id: item.id, 
-                        name: item.name, 
-                        age: item.age, 
-                        photos: [item.photo], 
-                        bio: 'Interested in you!', 
-                        segment: 'relationship' 
-                      } 
-                    });
+                    rootNavigation.dispatch(
+                      CommonActions.navigate({
+                        name: 'ProfileView',
+                        params: { 
+                          user: { 
+                            id: item.id, 
+                            name: item.name, 
+                            age: item.age, 
+                            photos: [item.photo], 
+                            bio: 'Interested in you!', 
+                            segment: 'relationship' 
+                          } 
+                        }
+                      })
+                    );
                   }}
                 >
                   <Image source={{ uri: item.photo }} style={styles.likeAvatar} />
@@ -575,16 +602,21 @@ function ProfileViewScreen({ navigation }: ProfileViewProps) {
                   style={styles.likeItem}
                   onPress={() => {
                     setShowViewsModal(false);
-                    rootNavigation.navigate('ProfileView', { 
-                      user: { 
-                        id: item.id, 
-                        name: item.name, 
-                        age: item.age, 
-                        photos: [item.photo], 
-                        bio: 'Checked out your profile!', 
-                        segment: 'fun' 
-                      } 
-                    });
+                    rootNavigation.dispatch(
+                      CommonActions.navigate({
+                        name: 'ProfileView',
+                        params: { 
+                          user: { 
+                            id: item.id, 
+                            name: item.name, 
+                            age: item.age, 
+                            photos: [item.photo], 
+                            bio: 'Checked out your profile!', 
+                            segment: 'fun' 
+                          } 
+                        }
+                      })
+                    );
                   }}
                 >
                   <Image source={{ uri: item.photo }} style={styles.likeAvatar} />
@@ -888,5 +920,80 @@ const styles = StyleSheet.create({
     fontSize: SIZES.body2,
     fontFamily: FONTS.semiBold,
     color: COLORS.white,
+  },
+  // Stats cost indicator
+  statCost: {
+    fontSize: 10,
+    fontFamily: FONTS.medium,
+    color: COLORS.textLight,
+    marginTop: 2,
+  },
+  // Subscription badge
+  subscriptionBadge: {
+    backgroundColor: 'rgba(255, 75, 125, 0.1)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginTop: 12,
+    alignSelf: 'center',
+  },
+  subscriptionText: {
+    fontSize: 12,
+    fontFamily: FONTS.medium,
+    color: COLORS.primary,
+  },
+  // Likes/Views Modal Styles
+  likesModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  likesModalContent: {
+    backgroundColor: COLORS.white,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: height * 0.75,
+    paddingBottom: 40,
+  },
+  likesModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.grayLight,
+  },
+  likesModalTitle: {
+    fontSize: 20,
+    fontFamily: FONTS.bold,
+    color: COLORS.text,
+  },
+  likeItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.grayLight,
+  },
+  likeAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    marginRight: 14,
+  },
+  likeInfo: {
+    flex: 1,
+  },
+  likeName: {
+    fontSize: 16,
+    fontFamily: FONTS.bold,
+    color: COLORS.text,
+  },
+  likeSubtext: {
+    fontSize: 13,
+    fontFamily: FONTS.regular,
+    color: COLORS.textSecondary,
+    marginTop: 2,
   },
 });
