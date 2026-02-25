@@ -139,7 +139,7 @@ export default function ProfileCreationScreen({ navigation, route }: Props) {
         await AsyncStorage.setItem('userEmail', email);
       }
       
-      navigation.navigate('PhotoUpload');
+      navigation.navigate('LocationPermission');
     } catch (error) {
       console.error('Error saving profile:', error);
       Alert.alert('Error', 'Failed to save profile. Please try again.');
@@ -399,7 +399,7 @@ export default function ProfileCreationScreen({ navigation, route }: Props) {
           disabled={!isValid()}
           activeOpacity={0.8}
         >
-          <Text style={styles.continueButtonText}>Continue to Photos</Text>
+          <Text style={styles.continueButtonText}>Continue</Text>
           <Ionicons name="arrow-forward" size={20} color={COLORS.white} />
         </TouchableOpacity>
       </View>

@@ -11,6 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { CommonActions } from '@react-navigation/native';
 import { StackScreenProps } from '@react-navigation/stack';
 import * as ImagePicker from 'expo-image-picker';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
@@ -67,10 +68,20 @@ export default function PhotoUploadScreen({ navigation }: Props) {
     if (hasMinPhotos) {
       try {
         await AsyncStorage.setItem('userPhotos', JSON.stringify(photos.filter(p => p !== null)));
-        navigation.navigate('LocationPermission');
+        
+        // Complete profile
+        await AsyncStorage.setItem('hasProfile', 'true');
+        await AsyncStorage.setItem('userToken', 'demo-token');
+        
+        navigation.dispatch(
+          CommonActions.reset({
+            index: 0,
+            routes: [{ name: 'Welcome' }],
+          })
+        );
       } catch (error) {
-        console.error('Error saving photos:', error);
-        Alert.alert('Error', 'Failed to save photos. Please try again.');
+        console.error('Error completing profile:', error);
+        Alert.alert('Error', 'Failed to complete profile. Please try again.');
       }
     }
   };
@@ -200,8 +211,8 @@ export default function PhotoUploadScreen({ navigation }: Props) {
           disabled={!hasMinPhotos}
           activeOpacity={0.8}
         >
-          <Text style={styles.continueButtonText}>Continue</Text>
-          <Ionicons name="arrow-forward" size={20} color={COLORS.white} />
+          <Text style={styles.continueButtonText}>Complete Profile</Text>
+          <Ionicons name="checkmark" size={20} color={COLORS.white} />
         </TouchableOpacity>
       </View>
     </View>

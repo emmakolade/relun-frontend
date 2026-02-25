@@ -75,18 +75,9 @@ export default function LocationPermissionScreen({ navigation }: Props) {
   const handleContinue = async () => {
     if (location) {
       try {
-        await AsyncStorage.setItem('hasProfile', 'true');
-        await AsyncStorage.setItem('userToken', 'demo-token');
-        
-        navigation.dispatch(
-          CommonActions.reset({
-            index: 0,
-            routes: [{ name: 'Welcome' }],
-          })
-        );
+        navigation.navigate('PhotoUpload');
       } catch (error) {
-        console.error('Error completing profile:', error);
-        Alert.alert('Error', 'Failed to complete profile. Please try again.');
+        console.error('Error continuing:', error);
       }
     }
   };
@@ -190,8 +181,8 @@ export default function LocationPermissionScreen({ navigation }: Props) {
             onPress={handleContinue}
             activeOpacity={0.8}
           >
-            <Text style={styles.continueButtonText}>Complete Profile</Text>
-            <Ionicons name="checkmark" size={20} color={COLORS.white} />
+            <Text style={styles.continueButtonText}>Continue</Text>
+            <Ionicons name="arrow-forward" size={20} color={COLORS.white} />
           </TouchableOpacity>
         )}
       </View>
