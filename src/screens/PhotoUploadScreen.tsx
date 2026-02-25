@@ -119,7 +119,7 @@ export default function PhotoUploadScreen({ navigation }: Props) {
               >
                 {photo ? (
                   <>
-                    <Image source={{ uri: photo }} style={styles.photo} resizeMode="cover" resizeMode="cover" />
+                    <Image source={{ uri: photo }} style={styles.photo} resizeMode="cover" />
                     <TouchableOpacity
                       style={styles.removeButton}
                       onPress={() => removePhoto(index)}
@@ -152,7 +152,7 @@ export default function PhotoUploadScreen({ navigation }: Props) {
               >
                 {photo ? (
                   <>
-                    <Image source={{ uri: photo }} style={styles.photo} />
+                    <Image source={{ uri: photo }} style={styles.photo} resizeMode="cover" />
                     <TouchableOpacity
                       style={styles.removeButton}
                       onPress={() => removePhoto(index + 3)}
