@@ -5,33 +5,26 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
-  ScrollView,
   StatusBar,
   Alert,
+  Dimensions,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { CommonActions } from '@react-navigation/native';
 import { StackScreenProps } from '@react-navigation/stack';
 import * as ImagePicker from 'expo-image-picker';
-import * as Location from 'expo-location';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { RootStackParamList } from '../types';
 
+const { width } = Dimensions.get('window');
+const PHOTO_GAP = 10;
+const PHOTO_SIZE = (width - (SIZES.padding * 2) - (PHOTO_GAP * 2)) / 3;
+
 type Props = StackScreenProps<RootStackParamList, 'PhotoUpload'>;
 
 export default function PhotoUploadScreen({ navigation }: Props) {
-  const [photos, setPhotos] = useState<(string | null)[]>([null, null, null]);
-  const [location, setLocation] = useState<Location.LocationObject | null>(null);
-  
-  const checkLoginStatus = async () => {
-    // Helper to trigger app reload by navigating
-    const token = await AsyncStorage.getItem('userToken');
-    if (token) {
-      // User is logged in - force a hard reset
-      // This is a workaround; ideally use Context API
-    }
-  };
+  const [photos, setPhotos] = useState<(string | null)[]>([null, null, null, null, null, null]);
 
   const pickImage = async (index: number) => {
     try {
@@ -66,49 +59,18 @@ export default function PhotoUploadScreen({ navigation }: Props) {
     setPhotos(newPhotos);
   };
 
-  const requestLocation = async () => {
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    
-    if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Please grant permission to access location');
-      return;
-    }
+  const photoCount = photos.filter((p) => p !== null).length;
+  const hasMinPhotos = photoCount >= 3;
+  const progress = Math.min((photoCount / 3) * 100, 100);
 
-    const location = await Location.getCurrentPositionAsync({});
-    setLocation(location);
-    Alert.alert('Success', 'Location enabled successfully');
-  };
-
-  const calculateProgress = (): number => {
-    const photoCount = photos.filter((p) => p !== null).length;
-    const photoProgress = (photoCount / 3) * 75;
-    const locationProgress = location ? 25 : 0;
-    return photoProgress + locationProgress;
-  };
-
-  const progress = calculateProgress();
-  const hasMinPhotos = photos.filter((p) => p !== null).length >= 1;
-  const isValid = hasMinPhotos && location;
-
-  const handleFinish = async () => {
-    if (isValid) {
+  const handleContinue = async () => {
+    if (hasMinPhotos) {
       try {
-        await AsyncStorage.setItem('userPhotos', JSON.stringify(photos));
-        await AsyncStorage.setItem('userLocation', JSON.stringify(location));
-        await AsyncStorage.setItem('hasProfile', 'true');
-        await AsyncStorage.setItem('userToken', 'demo-token');
-        
-        // App.js interval will detect the token and automatically show Main navigator (Swipe screen)
-        // Just stay on current screen or navigate to Welcome - the interval will handle the rest
-        navigation.dispatch(
-          CommonActions.reset({
-            index: 0,
-            routes: [{ name: 'Welcome' }],
-          })
-        );
+        await AsyncStorage.setItem('userPhotos', JSON.stringify(photos.filter(p => p !== null)));
+        navigation.navigate('LocationPermission');
       } catch (error) {
-        console.error('Error completing profile:', error);
-        Alert.alert('Error', 'Failed to complete profile. Please try again.');
+        console.error('Error saving photos:', error);
+        Alert.alert('Error', 'Failed to save photos. Please try again.');
       }
     }
   };
@@ -122,124 +84,125 @@ export default function PhotoUploadScreen({ navigation }: Props) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
-        <View style={styles.progressContainer}>
-          <View style={styles.progressBar}>
-            <View style={[styles.progress, { width: `${progress}%` }]} />
-          </View>
-          <Text style={styles.progressText}>{Math.round(progress)}% Complete</Text>
+        <View style={styles.progressBar}>
+          <View style={[styles.progress, { width: `${progress}%` }]} />
         </View>
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.content}>
-          <Text style={styles.title}>Add Your Photos</Text>
-          <Text style={styles.subtitle}>
-            Upload at least 1 photo. You can add up to 3 photos.
-          </Text>
+      {/* Content */}
+      <View style={styles.content}>
+        <Text style={styles.title}>Add Your Photos</Text>
+        <Text style={styles.subtitle}>
+          Add at least 3 photos to continue. Show your best self!
+        </Text>
 
-          {/* Photo Grid */}
-          <View style={styles.photoGrid}>
-            {photos.map((photo, index) => (
-              <View key={index} style={styles.photoContainer}>
-                <TouchableOpacity
-                  style={[styles.photoBox, photo && styles.photoBoxFilled]}
-                  onPress={() => pickImage(index)}
-                  activeOpacity={0.7}
-                >
-                  {photo ? (
-                    <>
-                      <Image source={{ uri: photo }} style={styles.photo} />
-                      <TouchableOpacity
-                        style={styles.removeButton}
-                        onPress={() => removePhoto(index)}
-                      >
-                        <Ionicons name="close-circle" size={28} color={COLORS.error} />
-                      </TouchableOpacity>
-                    </>
-                  ) : (
-                    <View style={styles.placeholderContent}>
-                      <Ionicons name="camera" size={32} color={COLORS.textLight} />
-                      <Text style={styles.placeholderText}>
-                        {index === 0 ? 'Main Photo' : `Photo ${index + 1}`}
-                      </Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-                {index === 0 && (
-                  <View style={styles.requiredBadge}>
-                    <Text style={styles.requiredText}>Required</Text>
+        {/* Photo Grid - 2 rows of 3 */}
+        <View style={styles.photoGrid}>
+          {/* First row */}
+          <View style={styles.photoRow}>
+            {photos.slice(0, 3).map((photo, index) => (
+              <TouchableOpacity
+                key={index}
+                style={[styles.photoBox, photo && styles.photoBoxFilled]}
+                onPress={() => pickImage(index)}
+                activeOpacity={0.7}
+              >
+                {photo ? (
+                  <>
+                    <Image source={{ uri: photo }} style={styles.photo} />
+                    <TouchableOpacity
+                      style={styles.removeButton}
+                      onPress={() => removePhoto(index)}
+                    >
+                      <Ionicons name="close-circle" size={24} color={COLORS.white} />
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <View style={styles.placeholderContent}>
+                    <Ionicons name="add" size={28} color={COLORS.textLight} />
                   </View>
                 )}
-              </View>
+                {index === 0 && !photo && (
+                  <View style={styles.mainBadge}>
+                    <Text style={styles.mainBadgeText}>Main</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
             ))}
           </View>
 
-          {/* Photo Tips */}
-          <View style={styles.tipsContainer}>
-            <Ionicons name="information-circle-outline" size={20} color={COLORS.primary} />
-            <View style={styles.tipsContent}>
-              <Text style={styles.tipsTitle}>Photo Guidelines:</Text>
-              <Text style={styles.tipText}>• Show your face clearly</Text>
-              <Text style={styles.tipText}>• Use recent photos</Text>
-              <Text style={styles.tipText}>• Smile and be yourself!</Text>
-            </View>
-          </View>
-
-          {/* Location Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Enable Location</Text>
-            <Text style={styles.sectionSubtitle}>
-              Help us find matches near you
-            </Text>
-            
-            <TouchableOpacity
-              style={[styles.locationButton, location && styles.locationButtonEnabled]}
-              onPress={requestLocation}
-              activeOpacity={0.8}
-            >
-              <Ionicons
-                name={location ? 'location' : 'location-outline'}
-                size={24}
-                color={location ? COLORS.white : COLORS.primary}
-              />
-              <Text style={[styles.locationButtonText, location && styles.locationButtonTextEnabled]}>
-                {location ? 'Location Enabled' : 'Enable Location'}
-              </Text>
-              {location && <Ionicons name="checkmark-circle" size={24} color={COLORS.white} />}
-            </TouchableOpacity>
-          </View>
-
-          {/* Verification Notice */}
-          <View style={styles.verificationNotice}>
-            <Ionicons name="shield-checkmark-outline" size={24} color={COLORS.success} />
-            <Text style={styles.verificationText}>
-              Photo verification will be available in your profile settings after signup
-            </Text>
+          {/* Second row */}
+          <View style={styles.photoRow}>
+            {photos.slice(3, 6).map((photo, index) => (
+              <TouchableOpacity
+                key={index + 3}
+                style={[styles.photoBox, photo && styles.photoBoxFilled]}
+                onPress={() => pickImage(index + 3)}
+                activeOpacity={0.7}
+              >
+                {photo ? (
+                  <>
+                    <Image source={{ uri: photo }} style={styles.photo} />
+                    <TouchableOpacity
+                      style={styles.removeButton}
+                      onPress={() => removePhoto(index + 3)}
+                    >
+                      <Ionicons name="close-circle" size={24} color={COLORS.white} />
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <View style={styles.placeholderContent}>
+                    <Ionicons name="add" size={28} color={COLORS.textLight} />
+                  </View>
+                )}
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
-      </ScrollView>
 
-      {/* Finish Button */}
+        {/* Photo Count Indicator */}
+        <View style={styles.countContainer}>
+          <Text style={[styles.countText, hasMinPhotos && styles.countTextSuccess]}>
+            {photoCount}/6 photos
+          </Text>
+          {!hasMinPhotos && (
+            <Text style={styles.countHint}>
+              Add {3 - photoCount} more {3 - photoCount === 1 ? 'photo' : 'photos'}
+            </Text>
+          )}
+        </View>
+
+        {/* Tips */}
+        <View style={styles.tipsContainer}>
+          <Text style={styles.tipsTitle}>Tips for great photos:</Text>
+          <View style={styles.tipsList}>
+            <View style={styles.tipItem}>
+              <Ionicons name="checkmark-circle" size={16} color={COLORS.success} />
+              <Text style={styles.tipText}>Clear face shots</Text>
+            </View>
+            <View style={styles.tipItem}>
+              <Ionicons name="checkmark-circle" size={16} color={COLORS.success} />
+              <Text style={styles.tipText}>Recent photos</Text>
+            </View>
+            <View style={styles.tipItem}>
+              <Ionicons name="checkmark-circle" size={16} color={COLORS.success} />
+              <Text style={styles.tipText}>Smile!</Text>
+            </View>
+          </View>
+        </View>
+      </View>
+
+      {/* Continue Button */}
       <View style={styles.footer}>
         <TouchableOpacity
-          style={[styles.finishButton, !isValid && styles.disabledButton]}
-          onPress={handleFinish}
-          disabled={!isValid}
+          style={[styles.continueButton, !hasMinPhotos && styles.disabledButton]}
+          onPress={handleContinue}
+          disabled={!hasMinPhotos}
           activeOpacity={0.8}
         >
-          <Text style={styles.finishButtonText}>Complete Profile</Text>
-          <Ionicons name="checkmark" size={20} color={COLORS.white} />
+          <Text style={styles.continueButtonText}>Continue</Text>
+          <Ionicons name="arrow-forward" size={20} color={COLORS.white} />
         </TouchableOpacity>
-        
-        {!isValid && (
-          <Text style={styles.footerHint}>
-            {!hasMinPhotos && '• Add at least 1 photo\n'}
-            {!location && '• Enable location'}
-          </Text>
-        )}
       </View>
     </View>
   );
@@ -251,77 +214,72 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   header: {
-    paddingTop: 50,
+    paddingTop: Platform.OS === 'android' ? 40 : 60,
     paddingHorizontal: SIZES.padding,
     paddingBottom: 20,
   },
   backButton: {
-    width: 40,
-    height: 40,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: COLORS.white,
     justifyContent: 'center',
-    marginBottom: 16,
-  },
-  progressContainer: {
-    gap: 8,
+    alignItems: 'center',
+    marginBottom: 24,
+    ...SHADOWS.small,
   },
   progressBar: {
-    height: 4,
-    backgroundColor: COLORS.grayLight,
-    borderRadius: 2,
+    height: 6,
+    backgroundColor: COLORS.gray,
+    borderRadius: 3,
     overflow: 'hidden',
   },
   progress: {
     height: '100%',
     backgroundColor: COLORS.primary,
-    borderRadius: 2,
-  },
-  progressText: {
-    fontSize: SIZES.body3,
-    fontFamily: FONTS.medium,
-    color: COLORS.primary,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: SIZES.padding,
+    borderRadius: 3,
   },
   content: {
-    paddingBottom: 20,
+    flex: 1,
+    paddingHorizontal: SIZES.padding,
   },
   title: {
-    fontSize: SIZES.h2,
+    fontSize: 28,
     fontFamily: FONTS.bold,
     color: COLORS.text,
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: SIZES.body1,
+    fontSize: 16,
     fontFamily: FONTS.regular,
     color: COLORS.textSecondary,
     marginBottom: 24,
-    lineHeight: 24,
+    lineHeight: 22,
   },
   photoGrid: {
-    gap: 12,
-    marginBottom: 24,
+    gap: PHOTO_GAP,
+    marginBottom: 20,
   },
-  photoContainer: {
-    position: 'relative',
+  photoRow: {
+    flexDirection: 'row',
+    gap: PHOTO_GAP,
   },
   photoBox: {
-    width: '100%',
-    aspectRatio: 3 / 4,
-    borderRadius: SIZES.radiusLarge,
+    width: PHOTO_SIZE,
+    height: PHOTO_SIZE * 1.25,
+    borderRadius: 16,
     backgroundColor: COLORS.grayLight,
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
     borderWidth: 2,
-    borderColor: COLORS.gray,
+    borderColor: COLORS.border,
     borderStyle: 'dashed',
   },
   photoBoxFilled: {
     borderStyle: 'solid',
     borderColor: COLORS.primary,
+    borderWidth: 2,
   },
   photo: {
     width: '100%',
@@ -329,120 +287,85 @@ const styles = StyleSheet.create({
   },
   placeholderContent: {
     alignItems: 'center',
-    gap: 8,
-  },
-  placeholderText: {
-    fontSize: SIZES.body2,
-    fontFamily: FONTS.medium,
-    color: COLORS.textLight,
+    justifyContent: 'center',
   },
   removeButton: {
     position: 'absolute',
-    top: 12,
-    right: 12,
-    backgroundColor: COLORS.white,
+    top: 6,
+    right: 6,
+    width: 28,
+    height: 28,
     borderRadius: 14,
-    ...SHADOWS.medium,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  requiredBadge: {
+  mainBadge: {
     position: 'absolute',
-    top: 12,
-    left: 12,
+    bottom: 8,
+    left: 8,
     backgroundColor: COLORS.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
-  requiredText: {
-    fontSize: SIZES.body3,
+  mainBadgeText: {
+    fontSize: 10,
     fontFamily: FONTS.semiBold,
     color: COLORS.white,
+  },
+  countContainer: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  countText: {
+    fontSize: 16,
+    fontFamily: FONTS.semiBold,
+    color: COLORS.textSecondary,
+  },
+  countTextSuccess: {
+    color: COLORS.success,
+  },
+  countHint: {
+    fontSize: 13,
+    fontFamily: FONTS.regular,
+    color: COLORS.textLight,
+    marginTop: 4,
   },
   tipsContainer: {
-    flexDirection: 'row',
-    backgroundColor: COLORS.backgroundLight,
-    borderRadius: SIZES.radius,
+    backgroundColor: COLORS.white,
+    borderRadius: 16,
     padding: 16,
-    gap: 12,
-    marginBottom: 24,
-  },
-  tipsContent: {
-    flex: 1,
+    ...SHADOWS.small,
   },
   tipsTitle: {
-    fontSize: SIZES.body2,
+    fontSize: 14,
     fontFamily: FONTS.semiBold,
     color: COLORS.text,
-    marginBottom: 8,
+    marginBottom: 12,
+  },
+  tipsList: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  tipItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   tipText: {
-    fontSize: SIZES.body3,
+    fontSize: 13,
     fontFamily: FONTS.regular,
     color: COLORS.textSecondary,
-    lineHeight: 20,
-    marginBottom: 4,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: SIZES.h4,
-    fontFamily: FONTS.semiBold,
-    color: COLORS.text,
-    marginBottom: 4,
-  },
-  sectionSubtitle: {
-    fontSize: SIZES.body2,
-    fontFamily: FONTS.regular,
-    color: COLORS.textSecondary,
-    marginBottom: 16,
-  },
-  locationButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.backgroundLight,
-    borderWidth: 2,
-    borderColor: COLORS.primary,
-    borderRadius: SIZES.radius,
-    paddingVertical: 16,
-    gap: 12,
-  },
-  locationButtonEnabled: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  locationButtonText: {
-    fontSize: SIZES.body1,
-    fontFamily: FONTS.semiBold,
-    color: COLORS.primary,
-  },
-  locationButtonTextEnabled: {
-    color: COLORS.white,
-  },
-  verificationNotice: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#E8F5E9',
-    borderRadius: SIZES.radius,
-    padding: 16,
-    gap: 12,
-  },
-  verificationText: {
-    flex: 1,
-    fontSize: SIZES.body3,
-    fontFamily: FONTS.regular,
-    color: COLORS.textSecondary,
-    lineHeight: 20,
   },
   footer: {
     paddingHorizontal: SIZES.padding,
     paddingBottom: 40,
   },
-  finishButton: {
+  continueButton: {
     flexDirection: 'row',
     backgroundColor: COLORS.primary,
-    borderRadius: SIZES.radius,
+    borderRadius: 16,
     paddingVertical: 18,
     alignItems: 'center',
     justifyContent: 'center',
@@ -453,17 +376,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.gray,
     opacity: 0.5,
   },
-  finishButtonText: {
-    fontSize: SIZES.h4,
+  continueButtonText: {
+    fontSize: 17,
     fontFamily: FONTS.semiBold,
     color: COLORS.white,
-  },
-  footerHint: {
-    fontSize: SIZES.body3,
-    fontFamily: FONTS.regular,
-    color: COLORS.error,
-    textAlign: 'center',
-    marginTop: 12,
-    lineHeight: 20,
   },
 });

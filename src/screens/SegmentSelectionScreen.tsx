@@ -20,16 +20,15 @@ export default function SegmentSelectionScreen({ navigation }: Props) {
       id: 'relationship',
       title: '💍 Relationship',
       description: 'Looking for something serious and long-term',
-      color: COLORS.primary,
-      gradient: [COLORS.gradientStart, COLORS.gradientEnd], // Use verify modern coral-rose gradient
+      icon: 'heart',
+      gradient: [COLORS.gradientStart, COLORS.gradientEnd] as const,
     },
     {
       id: 'fun',
       title: '🎉 Fun',
       description: 'Casual, flirty, and keeping it light',
-      color: COLORS.fun,
-      gradient: ['#FF9F1C', '#FF7028'], // Keep orange but ensure it matches theme
-      isPremium: true,
+      icon: 'sparkles',
+      gradient: ['#FF9F1C', '#FF7028'] as const,
     },
   ];
 
@@ -68,43 +67,32 @@ export default function SegmentSelectionScreen({ navigation }: Props) {
               key={segment.id}
               activeOpacity={0.8}
               onPress={() => setSelectedSegment(segment.id)}
+              style={styles.cardWrapper}
             >
               <LinearGradient
                 colors={segment.gradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
                 style={[
                   styles.segmentCard,
                   selectedSegment === segment.id && styles.selectedCard,
                 ]}
               >
-                {segment.isPremium && (
-                  <View style={styles.premiumBadge}>
-                    <Ionicons name="star" size={12} color={COLORS.white} />
-                    <Text style={styles.premiumText}>Premium</Text>
+                <View style={styles.cardContent}>
+                  <View style={styles.cardLeft}>
+                    <Text style={styles.segmentTitle}>{segment.title}</Text>
+                    <Text style={styles.segmentDescription}>{segment.description}</Text>
                   </View>
-                )}
-                
-                <View style={styles.checkContainer}>
-                  {selectedSegment === segment.id && (
-                    <Ionicons name="checkmark-circle" size={32} color={COLORS.white} />
-                  )}
+                  <View style={styles.checkContainer}>
+                    {selectedSegment === segment.id ? (
+                      <View style={styles.checkedCircle}>
+                        <Ionicons name="checkmark" size={18} color={COLORS.white} />
+                      </View>
+                    ) : (
+                      <View style={styles.uncheckedCircle} />
+                    )}
+                  </View>
                 </View>
-
-                <Text style={styles.segmentTitle}>{segment.title}</Text>
-                <Text style={styles.segmentDescription}>{segment.description}</Text>
-
-                {segment.isPremium && (
-                  <View style={styles.premiumFeatures}>
-                    <Text style={styles.premiumFeatureText}>
-                      • See who likes you
-                    </Text>
-                    <Text style={styles.premiumFeatureText}>
-                      • Unlimited swipes
-                    </Text>
-                    <Text style={styles.premiumFeatureText}>
-                      • Priority matching
-                    </Text>
-                  </View>
-                )}
               </LinearGradient>
             </TouchableOpacity>
           ))}
@@ -184,77 +172,66 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   segmentsContainer: {
-    gap: 20,
+    gap: 16,
     marginBottom: 24,
   },
+  cardWrapper: {
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
   segmentCard: {
-    borderRadius: SIZES.radiusLarge,
-    padding: 24,
-    minHeight: 200,
+    borderRadius: 20,
+    paddingVertical: 24,
+    paddingHorizontal: 20,
     ...SHADOWS.medium,
-    position: 'relative',
-    justifyContent: 'flex-end',
   },
   selectedCard: {
-    transform: [{ scale: 1.02 }],
     borderWidth: 3,
-    borderColor: COLORS.white,
+    borderColor: 'rgba(255, 255, 255, 0.8)',
     ...SHADOWS.large,
   },
-  premiumBadge: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
+  cardContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.4)',
-    gap: 4,
+    justifyContent: 'space-between',
   },
-  premiumText: {
-    fontSize: 12,
-    fontFamily: FONTS.medium, // Changed to medium
-    color: COLORS.white,
+  cardLeft: {
+    flex: 1,
+    marginRight: 16,
   },
   checkContainer: {
-    position: 'absolute',
-    top: 20,
-    left: 20,
-    width: 32,
-    height: 32,
+    width: 28,
+    height: 28,
+  },
+  checkedCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: COLORS.white,
+  },
+  uncheckedCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.5)',
   },
   segmentTitle: {
-    fontSize: 28,
+    fontSize: 22,
     fontFamily: FONTS.bold,
     color: COLORS.white,
-    marginBottom: 8,
-    marginTop: 16,
-    textShadowColor: 'rgba(0,0,0,0.1)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
+    marginBottom: 4,
   },
   segmentDescription: {
-    fontSize: SIZES.body2,
-    fontFamily: FONTS.medium, // Changed to medium for readability on gradient
-    color: 'rgba(255, 255, 255, 0.95)',
+    fontSize: 14,
+    fontFamily: FONTS.medium,
+    color: 'rgba(255, 255, 255, 0.9)',
     lineHeight: 20,
-  },
-  premiumFeatures: {
-    marginTop: 16,
-    gap: 4,
-    backgroundColor: 'rgba(0,0,0,0.1)', // Subtle background for list
-    padding: 12,
-    borderRadius: 12,
-  },
-  premiumFeatureText: {
-    fontSize: 12,
-    fontFamily: FONTS.regular,
-    color: COLORS.white,
-    opacity: 1,
   },
   infoBox: {
     flexDirection: 'row',

@@ -6,6 +6,7 @@ export type RootStackParamList = {
   SegmentSelection: undefined;
   ProfileCreation: { segment: string };
   PhotoUpload: undefined;
+  LocationPermission: undefined;
   Main: undefined;
   Chat: { match: Match };
   Settings: undefined;

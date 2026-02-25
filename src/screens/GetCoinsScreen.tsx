@@ -64,7 +64,15 @@ export default function GetCoinsScreen({ navigation }: Props) {
         return;
       }
 
-      const location = await Location.getCurrentPositionAsync({});
+      let location;
+      try {
+        location = await Location.getCurrentPositionAsync({});
+      } catch (e) {
+        console.log('Location fetch failed, using fallback');
+        // Fallback for emulator
+        location = { coords: { latitude: 0, longitude: 0 } };
+      }
+
       const [address] = await Location.reverseGeocodeAsync({
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,

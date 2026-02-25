@@ -209,7 +209,7 @@ export default function ProfileCreationScreen({ navigation, route }: Props) {
               )}
             </TouchableOpacity>
             <View style={styles.warningContainer}>
-              <Ionicons name="warning-outline" size={16} color={COLORS.warning} />
+              <Ionicons name="warning-outline" size={16} color="#B45309" />
               <Text style={styles.warningText}>
                 Your date of birth can only be set once and cannot be changed later
               </Text>
@@ -662,7 +662,10 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 12,
     fontFamily: FONTS.medium,
-    color: COLORS.warning,
+    color: '#B45309', 
     lineHeight: 18,
+  },
+  genderCheck: {
+    marginLeft: 8,
   },
 });
