@@ -38,8 +38,7 @@ export default function PhotoUploadScreen({ navigation }: Props) {
 
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [3, 4],
+        allowsEditing: false,
         quality: 0.8,
       });
 
@@ -120,7 +119,7 @@ export default function PhotoUploadScreen({ navigation }: Props) {
               >
                 {photo ? (
                   <>
-                    <Image source={{ uri: photo }} style={styles.photo} />
+                    <Image source={{ uri: photo }} style={styles.photo} resizeMode="cover" resizeMode="cover" />
                     <TouchableOpacity
                       style={styles.removeButton}
                       onPress={() => removePhoto(index)}
