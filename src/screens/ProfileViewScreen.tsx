@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   Dimensions,
   Platform,
-  Alert,
   Modal,
   StatusBar,
 } from 'react-native';
@@ -17,6 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StackScreenProps } from '@react-navigation/stack';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
 import { RootStackParamList, Match } from '../types';
+import { useToast, ConfirmDialog } from '../components';
 
 const { width } = Dimensions.get('window');
 
@@ -29,6 +29,8 @@ export default function ProfileViewScreen({ navigation, route }: Props) {
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const [showFullImage, setShowFullImage] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
+  const { showToast } = useToast();
+  const [showTopUpDialog, setShowTopUpDialog] = useState(false);
 
   const scrollToIndex = (index: number) => {
     scrollViewRef.current?.scrollTo({ x: index * width, animated: true });
@@ -54,15 +56,8 @@ export default function ProfileViewScreen({ navigation, route }: Props) {
       
       navigation.navigate('Chat', { match: matchData });
     } else {
-      Alert.alert(
-        "Insufficient Coins", 
-        "Please top up to start a conversation.",
-        [
-          { text: "Cancel", style: "cancel" },
-          { text: "Top Up", onPress: () => navigation.navigate('GetCoins' as never) }
-        ]
-      );
       setShowCoinModal(false);
+      setShowTopUpDialog(true);
     }
   };
 
@@ -95,7 +90,7 @@ export default function ProfileViewScreen({ navigation, route }: Props) {
               style={styles.confirmButton} 
               onPress={confirmUnlock}
             >
-              <Text style={styles.confirmButtonText}>Unlock (15 💰)</Text>
+              <Text style={styles.confirmButtonText}>Unlock (15 coins)</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -257,7 +252,7 @@ export default function ProfileViewScreen({ navigation, route }: Props) {
       <View style={styles.actionBar}>
         <View style={styles.balanceContainer}>
           <Text style={styles.balanceLabel}>Your Balance:</Text>
-          <Text style={styles.balanceValue}>{coinBalance} 💰</Text>
+          <Text style={styles.balanceValue}>{coinBalance} coins</Text>
         </View>
 
         <TouchableOpacity style={styles.waveButton}>
@@ -268,12 +263,25 @@ export default function ProfileViewScreen({ navigation, route }: Props) {
           style={styles.chatButton}
           onPress={handleStartChat}
         >
-          <Text style={styles.chatButtonText}>Message (15 💰)</Text>
+          <Text style={styles.chatButtonText}>Message (15 coins)</Text>
           <Ionicons name="send" size={18} color="white" style={{ marginLeft: 8 }} />
         </TouchableOpacity>
       </View>
 
       <CoinModal />
+      
+      <ConfirmDialog
+        visible={showTopUpDialog}
+        title="Insufficient Coins"
+        message="Please top up to start a conversation."
+        confirmText="Top Up"
+        cancelText="Cancel"
+        onConfirm={() => {
+          setShowTopUpDialog(false);
+          navigation.navigate('GetCoins' as never);
+        }}
+        onCancel={() => setShowTopUpDialog(false)}
+      />
     </View>
   );
 }

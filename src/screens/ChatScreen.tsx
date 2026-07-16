@@ -9,12 +9,13 @@ import {
   KeyboardAvoidingView,
   Platform,
   StatusBar,
-  Alert,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StackScreenProps } from '@react-navigation/stack';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
 import { RootStackParamList } from '../types';
+import { useToast, ConfirmDialog } from '../components';
 
 interface Message {
   id: string;
@@ -45,7 +46,7 @@ const MOCK_MESSAGES: Message[] = [
   },
   {
     id: '4',
-    text: 'Oh wow, I love Bali! The beaches are amazing 🏖️',
+    text: 'Oh wow, I love Bali! The beaches are amazing',
     senderId: '1',
     timestamp: new Date(Date.now() - 1800000),
   },
@@ -59,6 +60,10 @@ export default function ChatScreen({ navigation, route }: Props) {
   const [inputText, setInputText] = useState('');
   const flatListRef = useRef<FlatList<Message>>(null);
   const currentUserId = '1'; // Mock current user ID
+  const { showToast } = useToast();
+  const [showReportDialog, setShowReportDialog] = useState(false);
+  const [showBlockDialog, setShowBlockDialog] = useState(false);
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
 
   useEffect(() => {
     // Scroll to bottom when messages change
@@ -91,38 +96,30 @@ export default function ChatScreen({ navigation, route }: Props) {
   };
 
   const handleReport = () => {
-    Alert.alert(
-      'Report User',
-      'Are you sure you want to report this user?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Report',
-          style: 'destructive',
-          onPress: () => {
-            Alert.alert('Reported', 'User has been reported. We will review this case.');
-          },
-        },
-      ]
-    );
+    setShowReportDialog(true);
+  };
+
+  const confirmReport = () => {
+    setShowReportDialog(false);
+    showToast({
+      type: 'success',
+      title: 'Reported',
+      message: 'User has been reported. We will review this case.',
+    });
   };
 
   const handleBlock = () => {
-    Alert.alert(
-      'Block User',
-      'Are you sure you want to block this user? You will no longer see their messages.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Block',
-          style: 'destructive',
-          onPress: () => {
-            navigation.goBack();
-            Alert.alert('Blocked', 'User has been blocked successfully.');
-          },
-        },
-      ]
-    );
+    setShowBlockDialog(true);
+  };
+
+  const confirmBlock = () => {
+    setShowBlockDialog(false);
+    showToast({
+      type: 'info',
+      title: 'Blocked',
+      message: 'User has been blocked successfully.',
+    });
+    navigation.goBack();
   };
 
   const renderMessage = ({ item }) => {
@@ -184,13 +181,7 @@ export default function ChatScreen({ navigation, route }: Props) {
 
         <TouchableOpacity
           style={styles.moreButton}
-          onPress={() =>
-            Alert.alert('Actions', 'Choose an action', [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Report', onPress: handleReport },
-              { text: 'Block', onPress: handleBlock, style: 'destructive' },
-            ])
-          }
+          onPress={() => setShowActionsMenu(true)}
         >
           <Ionicons name="ellipsis-vertical" size={24} color={COLORS.text} />
         </TouchableOpacity>
@@ -239,6 +230,72 @@ export default function ChatScreen({ navigation, route }: Props) {
           Keep your conversations safe. Report any suspicious behavior.
         </Text>
       </View>
+
+      <ConfirmDialog
+        visible={showReportDialog}
+        title="Report User"
+        message="Are you sure you want to report this user?"
+        confirmText="Report"
+        cancelText="Cancel"
+        destructive
+        onConfirm={confirmReport}
+        onCancel={() => setShowReportDialog(false)}
+      />
+
+      <ConfirmDialog
+        visible={showBlockDialog}
+        title="Block User"
+        message="Are you sure you want to block this user? You will no longer see their messages."
+        confirmText="Block"
+        cancelText="Cancel"
+        destructive
+        onConfirm={confirmBlock}
+        onCancel={() => setShowBlockDialog(false)}
+      />
+
+      {/* Actions Menu */}
+      <Modal
+        visible={showActionsMenu}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowActionsMenu(false)}
+      >
+        <TouchableOpacity 
+          style={styles.actionMenuOverlay} 
+          activeOpacity={1} 
+          onPress={() => setShowActionsMenu(false)}
+        >
+          <View style={styles.actionMenuContainer}>
+            <Text style={styles.actionMenuTitle}>Actions</Text>
+            <TouchableOpacity 
+              style={styles.actionMenuItem}
+              onPress={() => {
+                setShowActionsMenu(false);
+                handleReport();
+              }}
+            >
+              <Ionicons name="flag-outline" size={22} color={COLORS.text} />
+              <Text style={styles.actionMenuText}>Report User</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.actionMenuItem, styles.actionMenuDestructive]}
+              onPress={() => {
+                setShowActionsMenu(false);
+                handleBlock();
+              }}
+            >
+              <Ionicons name="ban-outline" size={22} color={COLORS.primary} />
+              <Text style={[styles.actionMenuText, { color: COLORS.primary }]}>Block User</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.actionMenuItem, styles.actionMenuCancel]}
+              onPress={() => setShowActionsMenu(false)}
+            >
+              <Text style={styles.actionMenuCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -389,5 +446,55 @@ const styles = StyleSheet.create({
     fontSize: SIZES.body3,
     fontFamily: FONTS.regular,
     color: COLORS.textSecondary,
+  },
+  actionMenuOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  actionMenuContainer: {
+    backgroundColor: COLORS.white,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 16,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+    paddingHorizontal: SIZES.padding,
+  },
+  actionMenuTitle: {
+    fontSize: 16,
+    fontFamily: FONTS.semiBold,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  actionMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    gap: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.grayLight,
+  },
+  actionMenuDestructive: {
+    borderBottomWidth: 0,
+  },
+  actionMenuText: {
+    fontSize: 17,
+    fontFamily: FONTS.medium,
+    color: COLORS.text,
+  },
+  actionMenuCancel: {
+    justifyContent: 'center',
+    marginTop: 8,
+    paddingVertical: 16,
+    backgroundColor: COLORS.grayLight,
+    borderRadius: 14,
+    borderBottomWidth: 0,
+  },
+  actionMenuCancelText: {
+    fontSize: 17,
+    fontFamily: FONTS.semiBold,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
   },
 });

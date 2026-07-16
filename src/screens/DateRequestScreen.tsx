@@ -9,7 +9,6 @@ import {
   StatusBar,
   Modal,
   TextInput,
-  Alert,
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,6 +17,7 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
 import { DatePost, RootStackParamList, Request, Match, User } from '../types';
+import { useToast, ConfirmDialog } from '../components';
 
 // Mock Data
 const MOCK_DATES: DatePost[] = [
@@ -27,7 +27,7 @@ const MOCK_DATES: DatePost[] = [
     userName: 'Jessica',
     age: 24,
     userPhoto: 'https://randomuser.me/api/portraits/women/44.jpg',
-    activity: 'Movie Night 🎬',
+    activity: 'Movie Night',
     location: 'AMC Theater, Downtown',
     dateTime: 'Tonight, 8:00 PM',
     description: 'Looking for someone to watch the new Marvel movie with! Popcorn on me.',
@@ -39,7 +39,7 @@ const MOCK_DATES: DatePost[] = [
     userName: 'David',
     age: 28,
     userPhoto: 'https://randomuser.me/api/portraits/men/32.jpg',
-    activity: 'Coffee Date ☕️',
+    activity: 'Coffee Date',
     location: 'Starbucks, 5th Ave',
     dateTime: 'Tomorrow, 10:00 AM',
     description: 'Casual coffee chat to get to know each other.',
@@ -51,7 +51,7 @@ const MOCK_DATES: DatePost[] = [
     userName: 'Sarah',
     age: 26,
     userPhoto: 'https://randomuser.me/api/portraits/women/65.jpg',
-    activity: 'Hiking Adventure 🥾',
+    activity: 'Hiking Adventure',
     location: 'Sunset Trail',
     dateTime: 'Saturday, 7:00 AM',
     description: 'Early morning hike. Lets catch the sunrise!',
@@ -63,7 +63,7 @@ const MOCK_DATES: DatePost[] = [
     userName: 'You',
     age: 25,
     userPhoto: 'https://randomuser.me/api/portraits/men/1.jpg',
-    activity: 'Weekend Brunch 🥞',
+    activity: 'Weekend Brunch',
     location: 'Sunny Side Cafe',
     dateTime: 'Sunday, 11:00 AM',
     description: 'Anyone up for some pancakes?',
@@ -88,37 +88,41 @@ export default function DateRequestScreen() {
   const [newDateLocation, setNewDateLocation] = useState('');
   const [newDateDescription, setNewDateDescription] = useState('');
 
+  // Dialog States
+  const [showSafetyDialog, setShowSafetyDialog] = useState(false);
+  const [showJoinDialog, setShowJoinDialog] = useState(false);
+  const [selectedDatePost, setSelectedDatePost] = useState<DatePost | null>(null);
+  
+  const { showToast } = useToast();
   const currentUserId = 'root';
 
   const handleJoin = (datePost: DatePost) => {
-    Alert.alert(
-      "Safety First 🛡️",
-      "Please ensure your first meeting is in a public, open place. Do not go to private residences or secluded areas for your safety.",
-      [
-        { text: "Cancel", style: "cancel" },
-        { 
-          text: "I Understand", 
-          onPress: () => {
-             Alert.alert(
-              "Join Date?",
-              `Send interest to ${datePost.userName} for ${datePost.activity}?`,
-              [
-                { text: "Cancel", style: "cancel" },
-                { 
-                  text: "Send Request", 
-                  onPress: () => Alert.alert("Request Sent!", "They will be notified of your interest.") 
-                }
-              ]
-            );
-          }
-        }
-      ]
-    );
+    setSelectedDatePost(datePost);
+    setShowSafetyDialog(true);
+  };
+
+  const confirmSafety = () => {
+    setShowSafetyDialog(false);
+    setShowJoinDialog(true);
+  };
+
+  const confirmJoin = () => {
+    setShowJoinDialog(false);
+    showToast({
+      type: 'success',
+      title: 'Request Sent!',
+      message: 'They will be notified of your interest.',
+    });
+    setSelectedDatePost(null);
   };
 
   const handleCreateDate = () => {
     if (!newDateActivity || !newDateLocation) {
-      Alert.alert("Missing Info", "Please fill in activity and location.");
+      showToast({
+        type: 'warning',
+        title: 'Missing Info',
+        message: 'Please fill in activity and location.',
+      });
       return;
     }
 
@@ -142,7 +146,11 @@ export default function DateRequestScreen() {
     setNewDateLocation('');
     setNewDateDescription('');
     setActiveTab('my-dates'); // Switch to view newly created date
-    Alert.alert("Success", "Your date request is live!");
+    showToast({
+      type: 'success',
+      title: 'Success',
+      message: 'Your date request is live!',
+    });
   };
 
   const handleAcceptRequest = (dateId: string, request: Request) => {
@@ -167,9 +175,16 @@ export default function DateRequestScreen() {
         timestamp: new Date().toISOString(),
     };
     
-    Alert.alert("Date Accepted! 🎉", `Start planning with ${request.userName}!`, [
-        { text: "Start Chat", onPress: () => navigation.navigate('Chat', { match: matchData }) }
-    ]);
+    showToast({
+      type: 'success',
+      title: 'Date Accepted!',
+      message: `Start planning with ${request.userName}!`,
+      action: {
+        label: 'Chat',
+        onPress: () => navigation.navigate('Chat', { match: matchData }),
+      },
+      duration: 5000,
+    });
   };
 
   const handleDeclineRequest = (dateId: string, requestId: string) => {
@@ -236,7 +251,7 @@ export default function DateRequestScreen() {
         style={styles.joinButton}
         onPress={() => handleJoin(item)}
       >
-        <Text style={styles.joinButtonText}>I'm Interested 👋</Text>
+        <Text style={styles.joinButtonText}>I'm Interested</Text>
       </TouchableOpacity>
     </View>
   );
@@ -245,7 +260,7 @@ export default function DateRequestScreen() {
     <View style={styles.card}>
        <View style={styles.myDateHeader}>
            <Text style={styles.myDateActivity}>{item.activity}</Text>
-           <TouchableOpacity onPress={() => Alert.alert("Options", "Edit or Delete Date")}>
+           <TouchableOpacity onPress={() => showToast({ type: 'info', title: 'Coming Soon', message: 'Edit and delete options coming soon!' })}>
                <Ionicons name="ellipsis-horizontal" size={24} color={COLORS.text} />
            </TouchableOpacity>
        </View>
@@ -405,6 +420,32 @@ export default function DateRequestScreen() {
           </View>
         </View>
       </Modal>
+
+      <ConfirmDialog
+        visible={showSafetyDialog}
+        title="Safety First"
+        message="Please ensure your first meeting is in a public, open place. Do not go to private residences or secluded areas for your safety."
+        confirmText="I Understand"
+        cancelText="Cancel"
+        onConfirm={confirmSafety}
+        onCancel={() => {
+          setShowSafetyDialog(false);
+          setSelectedDatePost(null);
+        }}
+      />
+
+      <ConfirmDialog
+        visible={showJoinDialog}
+        title="Join Date?"
+        message={selectedDatePost ? `Send interest to ${selectedDatePost.userName} for ${selectedDatePost.activity}?` : ''}
+        confirmText="Send Request"
+        cancelText="Cancel"
+        onConfirm={confirmJoin}
+        onCancel={() => {
+          setShowJoinDialog(false);
+          setSelectedDatePost(null);
+        }}
+      />
     </SafeAreaView>
   );
 }

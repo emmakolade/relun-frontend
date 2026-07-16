@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   Image,
   StatusBar,
-  Alert,
   Dimensions,
   Platform,
 } from 'react-native';
@@ -17,6 +16,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { RootStackParamList } from '../types';
+import { useToast } from '../components';
 
 const { width } = Dimensions.get('window');
 const PHOTO_GAP = 10;
@@ -26,13 +26,18 @@ type Props = StackScreenProps<RootStackParamList, 'PhotoUpload'>;
 
 export default function PhotoUploadScreen({ navigation }: Props) {
   const [photos, setPhotos] = useState<(string | null)[]>([null, null, null, null, null, null]);
+  const { showToast } = useToast();
 
   const pickImage = async (index: number) => {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       
       if (status !== 'granted') {
-        Alert.alert('Permission needed', 'Please grant permission to access photos');
+        showToast({
+          type: 'warning',
+          title: 'Permission needed',
+          message: 'Please grant permission to access photos',
+        });
         return;
       }
 
@@ -49,7 +54,11 @@ export default function PhotoUploadScreen({ navigation }: Props) {
       }
     } catch (error) {
       console.error('Error picking image:', error);
-      Alert.alert('Error', 'Failed to pick image. Please try again.');
+      showToast({
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to pick image. Please try again.',
+      });
     }
   };
 
@@ -70,7 +79,6 @@ export default function PhotoUploadScreen({ navigation }: Props) {
         
         // Complete profile
         await AsyncStorage.setItem('hasProfile', 'true');
-        await AsyncStorage.setItem('userToken', 'demo-token');
         
         navigation.dispatch(
           CommonActions.reset({
@@ -80,7 +88,11 @@ export default function PhotoUploadScreen({ navigation }: Props) {
         );
       } catch (error) {
         console.error('Error completing profile:', error);
-        Alert.alert('Error', 'Failed to complete profile. Please try again.');
+        showToast({
+          type: 'error',
+          title: 'Error',
+          message: 'Failed to complete profile. Please try again.',
+        });
       }
     }
   };

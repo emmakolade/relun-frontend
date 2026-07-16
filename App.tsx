@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppState } from 'react-native';
 import { useFonts } from 'expo-font';
 import { Outfit_400Regular, Outfit_500Medium, Outfit_600SemiBold, Outfit_700Bold } from '@expo-google-fonts/outfit';
 import { Pacifico_400Regular } from '@expo-google-fonts/pacifico';
 
 import { RootStackParamList } from './src/types';
+import { ToastProvider } from './src/components';
 
 // Screens
 import WelcomeScreen from './src/screens/WelcomeScreen';
@@ -22,13 +22,13 @@ import MainNavigator from './src/navigation/MainNavigator';
 import ChatScreen from './src/screens/ChatScreen';
 import ProfileViewScreen from './src/screens/ProfileViewScreen';
 import GetCoinsScreen from './src/screens/GetCoinsScreen';
+import { getStoredAccessToken } from './src/services/auth.service';
 
 const Stack = createStackNavigator<RootStackParamList>();
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [refreshKey, setRefreshKey] = useState(0);
 
   let [fontsLoaded] = useFonts({
     Outfit_400Regular,
@@ -40,7 +40,7 @@ export default function App() {
 
   useEffect(() => {
     checkLoginStatus();
-    
+
     // Listen for app state changes to recheck login
     const subscription = AppState.addEventListener('change', (nextAppState) => {
       if (nextAppState === 'active') {
@@ -48,20 +48,14 @@ export default function App() {
       }
     });
 
-    // Check login status periodically in development
-    const interval = setInterval(() => {
-      checkLoginStatus();
-    }, 1000);
-
     return () => {
       subscription?.remove();
-      clearInterval(interval);
     };
-  }, [refreshKey]);
+  }, []);
 
   const checkLoginStatus = async () => {
     try {
-      const userToken = await AsyncStorage.getItem('userToken');
+      const userToken = await getStoredAccessToken();
       setIsLoggedIn(!!userToken);
     } catch (error) {
       console.log('Error checking login status:', error);
@@ -75,14 +69,15 @@ export default function App() {
   }
 
   return (
-    <NavigationContainer>
-      <Stack.Navigator
-        screenOptions={{
-          headerShown: false,
-          cardStyle: { backgroundColor: '#FAFAFA' },
-        }}
-        initialRouteName="Welcome"
-      >
+    <ToastProvider>
+      <NavigationContainer>
+        <Stack.Navigator
+          screenOptions={{
+            headerShown: false,
+            cardStyle: { backgroundColor: '#FAFAFA' },
+          }}
+          initialRouteName="Welcome"
+        >
         {!isLoggedIn ? (
           <>
             <Stack.Screen name="Welcome" component={WelcomeScreen} />
@@ -101,8 +96,9 @@ export default function App() {
             <Stack.Screen name="Chat" component={ChatScreen} />
             <Stack.Screen name="GetCoins" component={GetCoinsScreen} />
           </>
-        )}
-      </Stack.Navigator>
-    </NavigationContainer>
+          )}
+        </Stack.Navigator>
+      </NavigationContainer>
+    </ToastProvider>
   );
 }

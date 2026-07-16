@@ -8,12 +8,12 @@ import {
   TextInput,
   Switch,
   StatusBar,
-  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StackScreenProps } from '@react-navigation/stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
+import { useToast } from '../components';
 import { ProfileStackParamList } from './ProfileScreen'; // Importing from ProfileScreen if exported, or just redefine
 
 // Since ProfileStackParamList might be local, let's define the prop type generically or assuming structure
@@ -26,6 +26,7 @@ export default function SettingsScreen({ navigation }: Props) {
   const [name, setName] = useState('');
   const [bio, setBio] = useState('');
   const [age, setAge] = useState('');
+  const { showToast } = useToast();
 
   useEffect(() => {
     loadSettings();
@@ -50,9 +51,17 @@ export default function SettingsScreen({ navigation }: Props) {
       await AsyncStorage.setItem('userName', name);
       await AsyncStorage.setItem('userBio', bio);
       await AsyncStorage.setItem('userAge', age);
-      Alert.alert('Success', 'Profile updated successfully!');
+      showToast({
+        type: 'success',
+        title: 'Success',
+        message: 'Profile updated successfully!',
+      });
     } catch (error) {
-      Alert.alert('Error', 'Failed to update profile');
+      showToast({
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to update profile',
+      });
     }
   };
 

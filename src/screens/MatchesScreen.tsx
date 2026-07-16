@@ -40,7 +40,7 @@ const MOCK_MATCHES: Match[] = [
     name: 'Jessica',
     age: 29,
     photo: 'https://randomuser.me/api/portraits/women/3.jpg',
-    lastMessage: 'See you tomorrow 😊',
+    lastMessage: 'See you tomorrow',
     timestamp: '3h ago',
     unread: false,
   },

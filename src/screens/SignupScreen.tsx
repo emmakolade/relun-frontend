@@ -14,6 +14,8 @@ import { StackScreenProps } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
 import { RootStackParamList } from '../types';
+import { useToast } from '../components';
+import { requestOtp } from '../services/auth.service';
 
 type Props = StackScreenProps<RootStackParamList, 'Signup'>;
 
@@ -25,6 +27,8 @@ export default function SignupScreen({ navigation }: Props) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { showToast } = useToast();
 
   const isValidEmail = (email: string) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -41,9 +45,33 @@ export default function SignupScreen({ navigation }: Props) {
     );
   };
 
-  const handleSignup = () => {
-    if (isFormValid()) {
-      navigation.navigate('SegmentSelection');
+  const handleSignup = async () => {
+    if (!isFormValid()) {
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      await requestOtp({ email: email.trim().toLowerCase() });
+
+      showToast({
+        type: 'success',
+        title: 'OTP sent',
+        message: 'Verify your email to finish signup.',
+      });
+
+      navigation.navigate('OTPVerification', {
+        method: 'email',
+        prefilledContact: email.trim().toLowerCase(),
+      });
+    } catch (error) {
+      showToast({
+        type: 'error',
+        title: 'Signup failed',
+        message: error instanceof Error ? error.message : 'Please try again.',
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -148,9 +176,9 @@ export default function SignupScreen({ navigation }: Props) {
             style={[styles.signupButton, !isFormValid() && styles.disabledButton]} 
             onPress={handleSignup} 
             activeOpacity={0.8}
-            disabled={!isFormValid()}
+            disabled={!isFormValid() || isSubmitting}
           >
-            <Text style={styles.signupButtonText}>Create Account</Text>
+            <Text style={styles.signupButtonText}>{isSubmitting ? 'Creating...' : 'Create Account'}</Text>
           </TouchableOpacity>
           
           {!isFormValid() && (

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -8,11 +8,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   StatusBar,
-  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useToast } from '../components';
+import { persistAuthSession, requestOtp, verifyOtp } from '../services/auth.service';
 
 import { RootStackParamList } from '../types';
 import { StackScreenProps } from '@react-navigation/stack';
@@ -20,11 +21,22 @@ import { StackScreenProps } from '@react-navigation/stack';
 type Props = StackScreenProps<RootStackParamList, 'OTPVerification'>;
 
 export default function OTPVerificationScreen({ navigation, route }: Props) {
-  const { method } = route.params; // 'email' or 'phone'
-  const [contact, setContact] = useState<string>('');
+  const { method, prefilledContact, autoRequestOtp } = route.params; // 'email' or 'phone'
+  const [contact, setContact] = useState<string>(prefilledContact || '');
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState<string[]>(['', '', '', '', '', '']);
+  const [isRequestingOtp, setIsRequestingOtp] = useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
   const otpInputs = useRef<(TextInput | null)[]>([]);
+  const { showToast } = useToast();
+
+  useEffect(() => {
+    if (autoRequestOtp && prefilledContact) {
+      void handleSendOTP(prefilledContact);
+    }
+    // Only on mount for this route instance.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const isValidEmail = (email: string) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -34,21 +46,52 @@ export default function OTPVerificationScreen({ navigation, route }: Props) {
     return /^\d{10,}$/.test(phone.replace(/[\s-]/g, ''));
   };
 
-  const handleSendOTP = async () => {
-    if (method === 'email' && !isValidEmail(contact)) {
-      Alert.alert('Invalid Email', 'Please enter a valid email address');
+  const handleSendOTP = async (value?: string) => {
+    const normalizedContact = (value || contact).trim();
+
+    if (method === 'email' && !isValidEmail(normalizedContact)) {
+      showToast({
+        type: 'error',
+        title: 'Invalid Email',
+        message: 'Please enter a valid email address',
+      });
       return;
     }
     
-    if (method === 'phone' && !isValidPhone(contact)) {
-      Alert.alert('Invalid Phone', 'Please enter a valid phone number');
+    if (method === 'phone' && !isValidPhone(normalizedContact)) {
+      showToast({
+        type: 'error',
+        title: 'Invalid Phone',
+        message: 'Please enter a valid phone number',
+      });
       return;
     }
 
-    // TODO: Implement actual OTP sending API call
-    // For now, simulate sending OTP
-    setOtpSent(true);
-    Alert.alert('OTP Sent', `A verification code has been sent to your ${method}`);
+    try {
+      setIsRequestingOtp(true);
+      const payload =
+        method === 'email'
+          ? { email: normalizedContact.toLowerCase() }
+          : { phone: normalizedContact };
+
+      await requestOtp(payload);
+
+      setContact(normalizedContact);
+      setOtpSent(true);
+      showToast({
+        type: 'success',
+        title: 'OTP Sent',
+        message: `A verification code has been sent to your ${method}`,
+      });
+    } catch (error) {
+      showToast({
+        type: 'error',
+        title: 'Failed to send OTP',
+        message: error instanceof Error ? error.message : 'Please try again.',
+      });
+    } finally {
+      setIsRequestingOtp(false);
+    }
   };
 
   const handleOtpChange = (value: string, index: number) => {
@@ -71,35 +114,45 @@ export default function OTPVerificationScreen({ navigation, route }: Props) {
   const handleVerifyOTP = async () => {
     const otpCode = otp.join('');
     if (otpCode.length !== 6) {
-      Alert.alert('Invalid OTP', 'Please enter the complete 6-digit code');
+      showToast({
+        type: 'warning',
+        title: 'Invalid OTP',
+        message: 'Please enter the complete 6-digit code',
+      });
       return;
     }
 
-    // TODO: Implement actual OTP verification API call
-    // For now, simulate verification
     try {
-      // Store the contact method and value
+      setIsVerifyingOtp(true);
+      const payload =
+        method === 'email'
+          ? { email: contact.toLowerCase(), otp: otpCode }
+          : { phone: contact, otp: otpCode };
+
+      const authData = await verifyOtp(payload);
+
+      await persistAuthSession(authData, method, contact);
+
       await AsyncStorage.setItem('authMethod', method);
       if (method === 'email') {
         await AsyncStorage.setItem('userEmail', contact);
       } else {
         await AsyncStorage.setItem('userPhone', contact);
       }
-      
-      // Check if user is new or returning
-      const hasProfile = await AsyncStorage.getItem('hasProfile');
-      
-      if (!hasProfile) {
-        // New user - go to segment selection
+
+      if (authData.needsProfileCompletion) {
         navigation.navigate('SegmentSelection');
       } else {
-        // Returning user - log them in
-        await AsyncStorage.setItem('userToken', 'verified-token');
-        navigation.navigate('Welcome'); // This will trigger app reload to Main
+        navigation.navigate('Welcome');
       }
     } catch (error) {
-      console.error('Error during OTP verification:', error);
-      Alert.alert('Error', 'Something went wrong. Please try again.');
+      showToast({
+        type: 'error',
+        title: 'Verification failed',
+        message: error instanceof Error ? error.message : 'Something went wrong. Please try again.',
+      });
+    } finally {
+      setIsVerifyingOtp(false);
     }
   };
 
@@ -161,11 +214,13 @@ export default function OTPVerificationScreen({ navigation, route }: Props) {
 
             <TouchableOpacity
               style={[styles.button, !contact && styles.buttonDisabled]}
-              onPress={handleSendOTP}
-              disabled={!contact}
+              onPress={() => {
+                void handleSendOTP();
+              }}
+              disabled={!contact || isRequestingOtp}
               activeOpacity={0.8}
             >
-              <Text style={styles.buttonText}>Send Code</Text>
+              <Text style={styles.buttonText}>{isRequestingOtp ? 'Sending...' : 'Send Code'}</Text>
             </TouchableOpacity>
           </>
         ) : (
@@ -175,7 +230,9 @@ export default function OTPVerificationScreen({ navigation, route }: Props) {
               {otp.map((digit, index) => (
                 <TextInput
                   key={index}
-                  ref={(ref) => (otpInputs.current[index] = ref)}
+                  ref={(ref) => {
+                    otpInputs.current[index] = ref;
+                  }}
                   style={[styles.otpInput, digit && styles.otpInputFilled]}
                   value={digit}
                   onChangeText={(value) => handleOtpChange(value, index)}
@@ -190,13 +247,18 @@ export default function OTPVerificationScreen({ navigation, route }: Props) {
             <TouchableOpacity
               style={[styles.button, otp.join('').length !== 6 && styles.buttonDisabled]}
               onPress={handleVerifyOTP}
-              disabled={otp.join('').length !== 6}
+              disabled={otp.join('').length !== 6 || isVerifyingOtp}
               activeOpacity={0.8}
             >
-              <Text style={styles.buttonText}>Verify</Text>
+              <Text style={styles.buttonText}>{isVerifyingOtp ? 'Verifying...' : 'Verify'}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={handleSendOTP} style={styles.resendButton}>
+            <TouchableOpacity
+              onPress={() => {
+                void handleSendOTP();
+              }}
+              style={styles.resendButton}
+            >
               <Text style={styles.resendText}>Didn't receive code? <Text style={styles.resendTextBold}>Resend</Text></Text>
             </TouchableOpacity>
 
@@ -238,7 +300,7 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: COLORS.primaryLight,
+    backgroundColor: COLORS.grayLight,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 32,
@@ -262,8 +324,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.grayLight,
-    borderRadius: SIZES.radiusMedium,
-    paddingHorizontal: SIZES.paddingSmall,
+    borderRadius: SIZES.radius,
+    paddingHorizontal: SIZES.small,
     marginBottom: 24,
     width: '100%',
   },
@@ -286,7 +348,7 @@ const styles = StyleSheet.create({
   otpInput: {
     width: 50,
     height: 56,
-    borderRadius: SIZES.radiusMedium,
+    borderRadius: SIZES.radius,
     backgroundColor: COLORS.grayLight,
     textAlign: 'center',
     fontSize: SIZES.h3,
@@ -294,7 +356,7 @@ const styles = StyleSheet.create({
     color: COLORS.text,
   },
   otpInputFilled: {
-    backgroundColor: COLORS.primaryLight,
+    backgroundColor: COLORS.grayLight,
     borderColor: COLORS.primary,
     borderWidth: 2,
   },

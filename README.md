@@ -154,7 +154,7 @@ Users select their relationship intention:
 Create a `.env` file in the root directory:
 
 ```env
-API_URL=your_api_url
+EXPO_PUBLIC_API_BASE_URL=https://your-relun-backend.example.com
 GOOGLE_CLIENT_ID=your_google_client_id
 APPLE_CLIENT_ID=your_apple_client_id
 ```

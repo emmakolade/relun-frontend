@@ -15,17 +15,23 @@ type Props = StackScreenProps<RootStackParamList, 'SegmentSelection'>;
 export default function SegmentSelectionScreen({ navigation }: Props) {
   const [selectedSegment, setSelectedSegment] = useState<string | null>(null);
 
-  const segments = [
+  const segments: {
+    id: string;
+    title: string;
+    description: string;
+    icon: React.ComponentProps<typeof Ionicons>['name'];
+    gradient: readonly [string, string];
+  }[] = [
     {
       id: 'relationship',
-      title: '💍 Relationship',
+      title: 'Relationship',
       description: 'Looking for something serious and long-term',
       icon: 'heart',
       gradient: [COLORS.gradientStart, COLORS.gradientEnd] as const,
     },
     {
       id: 'fun',
-      title: '🎉 Fun',
+      title: 'Fun',
       description: 'Casual, flirty, and keeping it light',
       icon: 'sparkles',
       gradient: ['#FF9F1C', '#FF7028'] as const,
@@ -80,7 +86,10 @@ export default function SegmentSelectionScreen({ navigation }: Props) {
               >
                 <View style={styles.cardContent}>
                   <View style={styles.cardLeft}>
-                    <Text style={styles.segmentTitle}>{segment.title}</Text>
+                    <View style={styles.segmentTitleRow}>
+                      <Ionicons name={segment.icon} size={22} color={COLORS.white} />
+                      <Text style={styles.segmentTitle}>{segment.title}</Text>
+                    </View>
                     <Text style={styles.segmentDescription}>{segment.description}</Text>
                   </View>
                   <View style={styles.checkContainer}>
@@ -225,6 +234,12 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontFamily: FONTS.bold,
     color: COLORS.white,
+    marginBottom: 4,
+    marginLeft: 8,
+  },
+  segmentTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 4,
   },
   segmentDescription: {

@@ -9,46 +9,86 @@ import {
   Platform,
   ScrollView,
   StatusBar,
-  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StackScreenProps } from '@react-navigation/stack';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { RootStackParamList } from '../types';
+import { useToast } from '../components';
+import { login, persistAuthSession } from '../services/auth.service';
 
 type Props = StackScreenProps<RootStackParamList, 'Login'>;
 
 export default function LoginScreen({ navigation }: Props) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const [identifier, setIdentifier] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { showToast } = useToast();
+
+  const isEmail = (value: string) => /@/.test(value);
+
+  const toPayload = (value: string) => {
+    const normalized = value.trim();
+    return isEmail(normalized)
+      ? { method: 'email' as const, payload: { email: normalized.toLowerCase() } }
+      : { method: 'phone' as const, payload: { phone: normalized } };
+  };
 
   const handleLogin = async () => {
-    // TODO: Implement actual authentication
-    if (email && password) {
-      await AsyncStorage.setItem('userToken', 'demo-token');
-      await AsyncStorage.setItem('userEmail', email);
-      // Check if user has completed profile
-      const hasProfile = await AsyncStorage.getItem('hasProfile');
-      if (!hasProfile) {
+    const trimmed = identifier.trim();
+
+    if (!trimmed) {
+      showToast({
+        type: 'warning',
+        title: 'Missing details',
+        message: 'Enter your email or phone number to continue.',
+      });
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      const { method, payload } = toPayload(trimmed);
+      const authData = await login(payload);
+
+      await persistAuthSession(authData, method, trimmed);
+
+      showToast({
+        type: 'success',
+        title: 'Login successful!',
+        message: 'Welcome back.',
+      });
+
+      if (authData.needsProfileCompletion) {
         navigation.navigate('SegmentSelection');
-      } else {
-        // User is logged in with profile - show alert and refresh
-        Alert.alert(
-          'Success',
-          'Login successful!',
-          [
-            { 
-              text: 'OK', 
-              onPress: () => {
-                // Navigate to Welcome which will trigger app reload
-                navigation.navigate('Welcome');
-              }
-            }
-          ]
-        );
+        return;
       }
+
+      navigation.navigate('Welcome');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Login failed. Please try again.';
+
+      if (/verify/i.test(message)) {
+        const { method } = toPayload(trimmed);
+        showToast({
+          type: 'warning',
+          title: 'Verification needed',
+          message: 'Please verify your account with OTP.',
+        });
+        navigation.navigate('OTPVerification', {
+          method,
+          prefilledContact: trimmed,
+          autoRequestOtp: true,
+        });
+        return;
+      }
+
+      showToast({
+        type: 'error',
+        title: 'Login failed',
+        message,
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -79,40 +119,22 @@ export default function LoginScreen({ navigation }: Props) {
             <Ionicons name="mail-outline" size={20} color={COLORS.textSecondary} style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder="Email"
+              placeholder="Email or phone number"
               placeholderTextColor={COLORS.textLight}
-              value={email}
-              onChangeText={setEmail}
+              value={identifier}
+              onChangeText={setIdentifier}
               keyboardType="email-address"
               autoCapitalize="none"
             />
           </View>
 
-          <View style={styles.inputContainer}>
-            <Ionicons name="lock-closed-outline" size={20} color={COLORS.textSecondary} style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Password"
-              placeholderTextColor={COLORS.textLight}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPassword}
-            />
-            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-              <Ionicons
-                name={showPassword ? 'eye-outline' : 'eye-off-outline'}
-                size={20}
-                color={COLORS.textSecondary}
-              />
-            </TouchableOpacity>
-          </View>
-
-          <TouchableOpacity style={styles.forgotPassword}>
-            <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.loginButton} onPress={handleLogin} activeOpacity={0.8}>
-            <Text style={styles.loginButtonText}>Sign In</Text>
+          <TouchableOpacity
+            style={[styles.loginButton, isSubmitting && styles.loginButtonDisabled]}
+            onPress={handleLogin}
+            activeOpacity={0.8}
+            disabled={isSubmitting}
+          >
+            <Text style={styles.loginButtonText}>{isSubmitting ? 'Signing In...' : 'Sign In'}</Text>
           </TouchableOpacity>
 
           {/* Divider */}
@@ -225,15 +247,6 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     height: '100%',
   },
-  forgotPassword: {
-    alignSelf: 'flex-end',
-    marginBottom: 32,
-  },
-  forgotPasswordText: {
-    fontSize: SIZES.font,
-    fontFamily: FONTS.medium,
-    color: COLORS.textSecondary, // Less aggressive than primary color
-  },
   loginButton: {
     backgroundColor: COLORS.primary,
     borderRadius: SIZES.radiusLarge, // Pill shape
@@ -243,6 +256,9 @@ const styles = StyleSheet.create({
     ...SHADOWS.medium,
     shadowColor: COLORS.primary, // Colored shadow
     shadowOpacity: 0.3,
+  },
+  loginButtonDisabled: {
+    opacity: 0.7,
   },
   loginButtonText: {
     fontSize: SIZES.large,

@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   StatusBar,
-  Alert,
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,12 +15,14 @@ import * as Location from 'expo-location';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { RootStackParamList } from '../types';
+import { useToast } from '../components';
 
 type Props = StackScreenProps<RootStackParamList, 'LocationPermission'>;
 
 export default function LocationPermissionScreen({ navigation }: Props) {
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const { showToast } = useToast();
 
   const requestLocation = async () => {
     setIsLoading(true);
@@ -29,11 +30,12 @@ export default function LocationPermissionScreen({ navigation }: Props) {
       const { status } = await Location.requestForegroundPermissionsAsync();
       
       if (status !== 'granted') {
-        Alert.alert(
-          'Permission Required',
-          'Location access is needed to find matches near you. Please enable it in your device settings.',
-          [{ text: 'OK' }]
-        );
+        showToast({
+          type: 'warning',
+          title: 'Permission Required',
+          message: 'Location access is needed to find matches near you. Please enable it in settings.',
+          duration: 4000,
+        });
         setIsLoading(false);
         return;
       }

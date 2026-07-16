@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Alert,
   StatusBar,
   ActivityIndicator,
 } from 'react-native';
@@ -15,6 +14,7 @@ import { StackScreenProps } from '@react-navigation/stack';
 import * as Location from 'expo-location';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
 import { RootStackParamList } from '../types';
+import { useToast, ConfirmDialog } from '../components';
 
 type Props = StackScreenProps<RootStackParamList, 'GetCoins'>;
 
@@ -48,6 +48,9 @@ export default function GetCoinsScreen({ navigation }: Props) {
   const [currency, setCurrency] = useState(CURRENCY_CONFIG.DEFAULT);
   const [loading, setLoading] = useState(true);
   const [locationError, setLocationError] = useState(false);
+  const [showPurchaseDialog, setShowPurchaseDialog] = useState(false);
+  const [selectedPackage, setSelectedPackage] = useState<typeof BASE_PACKAGES[0] | null>(null);
+  const { showToast } = useToast();
 
   useEffect(() => {
     detectLocation();
@@ -110,21 +113,20 @@ export default function GetCoinsScreen({ navigation }: Props) {
   };
 
   const handlePurchase = (pkg: typeof BASE_PACKAGES[0]) => {
-    const price = formatPrice(pkg.basePrice);
-    Alert.alert(
-      "Confirm Purchase",
-      `Buy ${pkg.coins} coins for ${price}?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        { 
-          text: "Buy", 
-          onPress: () => {
-             // Here you would integrate In-App Purchases
-             Alert.alert("Success", `You purchased ${pkg.coins} coins!`);
-          }
-        }
-      ]
-    );
+    setSelectedPackage(pkg);
+    setShowPurchaseDialog(true);
+  };
+
+  const confirmPurchase = () => {
+    if (selectedPackage) {
+      setShowPurchaseDialog(false);
+      showToast({
+        type: 'success',
+        title: 'Purchase Successful!',
+        message: `You purchased ${selectedPackage.coins} coins`,
+      });
+      setSelectedPackage(null);
+    }
   };
 
   if (loading) {
@@ -202,6 +204,19 @@ export default function GetCoinsScreen({ navigation }: Props) {
            </Text>
         </View>
       </ScrollView>
+
+      <ConfirmDialog
+        visible={showPurchaseDialog}
+        title="Confirm Purchase"
+        message={selectedPackage ? `Buy ${selectedPackage.coins} coins for ${formatPrice(selectedPackage.basePrice)}?` : ''}
+        confirmText="Buy"
+        cancelText="Cancel"
+        onConfirm={confirmPurchase}
+        onCancel={() => {
+          setShowPurchaseDialog(false);
+          setSelectedPackage(null);
+        }}
+      />
     </SafeAreaView>
   );
 }

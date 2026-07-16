@@ -2,7 +2,11 @@ export type RootStackParamList = {
   Welcome: undefined;
   Login: undefined;
   Signup: undefined;
-  OTPVerification: { method: 'email' | 'phone' };
+  OTPVerification: {
+    method: 'email' | 'phone';
+    prefilledContact?: string;
+    autoRequestOtp?: boolean;
+  };
   SegmentSelection: undefined;
   ProfileCreation: { segment: string };
   PhotoUpload: undefined;

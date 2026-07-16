@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,13 +9,11 @@ import {
   StatusBar,
   KeyboardAvoidingView,
   Platform,
-  Alert,
-  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { useToast } from '../components';
 
 import { RootStackParamList } from '../types';
 import { StackScreenProps } from '@react-navigation/stack';
@@ -24,15 +22,23 @@ type Props = StackScreenProps<RootStackParamList, 'ProfileCreation'>;
 
 export default function ProfileCreationScreen({ navigation, route }: Props) {
   const { segment } = route.params || {};
+  const { showToast } = useToast();
   
   const [authMethod, setAuthMethod] = useState<string | null>('');
   const [name, setName] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState<Date | null>(null);
-  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [dobDay, setDobDay] = useState('');
+  const [dobMonth, setDobMonth] = useState('');
+  const [dobYear, setDobYear] = useState('');
+  const [dobError, setDobError] = useState('');
   const [gender, setGender] = useState('');
   const [bio, setBio] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+
+  const dayRef = useRef<TextInput>(null);
+  const monthRef = useRef<TextInput>(null);
+  const yearRef = useRef<TextInput>(null);
 
   const genders = ['Male', 'Female'];
 
@@ -95,23 +101,111 @@ export default function ProfileCreationScreen({ navigation, route }: Props) {
     return age;
   };
 
-  const handleDateChange = (event: any, selectedDate?: Date) => {
-    if (Platform.OS === 'android') {
-      setShowDatePicker(false);
-    }
+  // Validate and construct date from DOB fields
+  const validateAndSetDob = (day: string, month: string, year: string) => {
+    setDobError('');
     
-    if (selectedDate) {
-      const age = calculateAge(selectedDate);
-      if (age < 18) {
-        Alert.alert('Age Requirement', 'You must be at least 18 years old to use this app.');
+    // Only validate when all fields are filled
+    if (day.length === 2 && month.length === 2 && year.length === 4) {
+      const dayNum = parseInt(day, 10);
+      const monthNum = parseInt(month, 10);
+      const yearNum = parseInt(year, 10);
+      
+      // Basic validation
+      if (monthNum < 1 || monthNum > 12) {
+        setDobError('Invalid month');
+        setDateOfBirth(null);
         return;
       }
-      setDateOfBirth(selectedDate);
-      if (Platform.OS === 'ios') {
-        setShowDatePicker(false);
+      
+      // Days in month validation
+      const daysInMonth = new Date(yearNum, monthNum, 0).getDate();
+      if (dayNum < 1 || dayNum > daysInMonth) {
+        setDobError('Invalid day for this month');
+        setDateOfBirth(null);
+        return;
       }
+      
+      // Year range validation
+      const currentYear = new Date().getFullYear();
+      if (yearNum < 1940 || yearNum > currentYear) {
+        setDobError('Invalid year');
+        setDateOfBirth(null);
+        return;
+      }
+      
+      // Create the date
+      const date = new Date(yearNum, monthNum - 1, dayNum);
+      
+      // Check if date is in the future
+      if (date > new Date()) {
+        setDobError('Date cannot be in the future');
+        setDateOfBirth(null);
+        return;
+      }
+      
+      // Age validation
+      const age = calculateAge(date);
+      if (age < 18) {
+        setDobError('You must be at least 18 years old');
+        setDateOfBirth(null);
+        return;
+      }
+      
+      setDateOfBirth(date);
+    } else {
+      setDateOfBirth(null);
     }
   };
+
+  const handleDayChange = (text: string) => {
+    const cleaned = text.replace(/[^0-9]/g, '').slice(0, 2);
+    setDobDay(cleaned);
+    validateAndSetDob(cleaned, dobMonth, dobYear);
+    
+    // Auto-advance to month field
+    if (cleaned.length === 2) {
+      monthRef.current?.focus();
+    }
+  };
+
+  const handleMonthChange = (text: string) => {
+    const cleaned = text.replace(/[^0-9]/g, '').slice(0, 2);
+    setDobMonth(cleaned);
+    validateAndSetDob(dobDay, cleaned, dobYear);
+    
+    // Auto-advance to year field
+    if (cleaned.length === 2) {
+      yearRef.current?.focus();
+    }
+  };
+
+  const handleYearChange = (text: string) => {
+    const cleaned = text.replace(/[^0-9]/g, '').slice(0, 4);
+    setDobYear(cleaned);
+    validateAndSetDob(dobDay, dobMonth, cleaned);
+  };
+
+  const handleDayKeyPress = (e: any) => {
+    // Handle backspace when field is empty - go to previous field
+    if (e.nativeEvent.key === 'Backspace' && dobDay === '') {
+      // Day is first field, do nothing
+    }
+  };
+
+  const handleMonthKeyPress = (e: any) => {
+    if (e.nativeEvent.key === 'Backspace' && dobMonth === '') {
+      dayRef.current?.focus();
+    }
+  };
+
+  const handleYearKeyPress = (e: any) => {
+    if (e.nativeEvent.key === 'Backspace' && dobYear === '') {
+      monthRef.current?.focus();
+    }
+  };
+
+  const isDobComplete = dobDay.length === 2 && dobMonth.length === 2 && dobYear.length === 4 && dateOfBirth !== null;
 
   const isValid = () => {
     if (!name || !dateOfBirth || !gender) return false;
@@ -122,7 +216,11 @@ export default function ProfileCreationScreen({ navigation, route }: Props) {
 
   const handleContinue = async () => {
     if (!isValid()) {
-      Alert.alert('Incomplete Profile', 'Please fill all required fields correctly');
+      showToast({
+        type: 'warning',
+        title: 'Incomplete Profile',
+        message: 'Please fill all required fields correctly',
+      });
       return;
     }
 
@@ -142,7 +240,11 @@ export default function ProfileCreationScreen({ navigation, route }: Props) {
       navigation.navigate('LocationPermission');
     } catch (error) {
       console.error('Error saving profile:', error);
-      Alert.alert('Error', 'Failed to save profile. Please try again.');
+      showToast({
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to save profile. Please try again.',
+      });
     }
   };
 
@@ -195,85 +297,71 @@ export default function ProfileCreationScreen({ navigation, route }: Props) {
           {/* Date of Birth Input */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Date of Birth *</Text>
-            <TouchableOpacity
-              style={styles.inputContainer}
-              onPress={() => setShowDatePicker(true)}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="calendar-outline" size={20} color={COLORS.textSecondary} style={styles.inputIcon} />
-              <Text style={[styles.dateText, !dateOfBirth && styles.placeholderText]}>
-                {dateOfBirth ? formatDate(dateOfBirth) : 'Select your date of birth'}
-              </Text>
-              {dateOfBirth && (
-                <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
+            <View style={styles.dobContainer}>
+              <View style={[styles.dobFieldContainer, dobDay && styles.dobFieldFilled, dobError && dobDay.length === 2 && styles.dobFieldError]}>
+                <TextInput
+                  ref={dayRef}
+                  style={styles.dobInput}
+                  placeholder="DD"
+                  placeholderTextColor={COLORS.textLight}
+                  value={dobDay}
+                  onChangeText={handleDayChange}
+                  onKeyPress={handleDayKeyPress}
+                  keyboardType="number-pad"
+                  maxLength={2}
+                  selectTextOnFocus
+                />
+              </View>
+              <Text style={styles.dobSeparator}>/</Text>
+              <View style={[styles.dobFieldContainer, dobMonth && styles.dobFieldFilled, dobError && dobMonth.length === 2 && styles.dobFieldError]}>
+                <TextInput
+                  ref={monthRef}
+                  style={styles.dobInput}
+                  placeholder="MM"
+                  placeholderTextColor={COLORS.textLight}
+                  value={dobMonth}
+                  onChangeText={handleMonthChange}
+                  onKeyPress={handleMonthKeyPress}
+                  keyboardType="number-pad"
+                  maxLength={2}
+                  selectTextOnFocus
+                />
+              </View>
+              <Text style={styles.dobSeparator}>/</Text>
+              <View style={[styles.dobFieldContainer, styles.dobYearField, dobYear && styles.dobFieldFilled, dobError && dobYear.length === 4 && styles.dobFieldError]}>
+                <TextInput
+                  ref={yearRef}
+                  style={styles.dobInput}
+                  placeholder="YYYY"
+                  placeholderTextColor={COLORS.textLight}
+                  value={dobYear}
+                  onChangeText={handleYearChange}
+                  onKeyPress={handleYearKeyPress}
+                  keyboardType="number-pad"
+                  maxLength={4}
+                  selectTextOnFocus
+                />
+              </View>
+              {isDobComplete && (
+                <View style={styles.dobCheckContainer}>
+                  <Ionicons name="checkmark-circle" size={24} color={COLORS.success} />
+                </View>
               )}
-            </TouchableOpacity>
-            <View style={styles.warningContainer}>
-              <Ionicons name="warning-outline" size={16} color="#B45309" />
-              <Text style={styles.warningText}>
-                Your date of birth can only be set once and cannot be changed later
-              </Text>
             </View>
+            {dobError ? (
+              <View style={styles.errorContainer}>
+                <Ionicons name="alert-circle" size={16} color={COLORS.primary} />
+                <Text style={styles.errorText}>{dobError}</Text>
+              </View>
+            ) : (
+              <View style={styles.warningContainer}>
+                <Ionicons name="warning-outline" size={16} color="#B45309" />
+                <Text style={styles.warningText}>
+                  Your date of birth can only be set once and cannot be changed later
+                </Text>
+              </View>
+            )}
           </View>
-
-          {/* Date Picker Modal for iOS */}
-          {Platform.OS === 'ios' && showDatePicker && (
-            <Modal
-              visible={showDatePicker}
-              transparent={true}
-              animationType="slide"
-              onRequestClose={() => setShowDatePicker(false)}
-            >
-              <TouchableOpacity 
-                style={styles.modalOverlay}
-                activeOpacity={1} 
-                onPress={() => setShowDatePicker(false)}
-              >
-                <TouchableOpacity 
-                  style={styles.modalContent}
-                  activeOpacity={1}
-                  onPress={(e) => e.stopPropagation()}
-                >
-                  <View style={styles.modalHeader}>
-                    <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                      <Text style={styles.modalCancelButton}>Cancel</Text>
-                    </TouchableOpacity>
-                    <Text style={styles.modalTitle}>Select Date of Birth</Text>
-                    <TouchableOpacity onPress={() => {
-                      if (dateOfBirth) {
-                        setShowDatePicker(false);
-                      }
-                    }}>
-                      <Text style={[styles.modalDoneButton, !dateOfBirth && { opacity: 0.5 }]}>Done</Text>
-                    </TouchableOpacity>
-                  </View>
-                  <DateTimePicker
-                    value={dateOfBirth || new Date(2000, 0, 1)}
-                    mode="date"
-                    display="spinner"
-                    onChange={handleDateChange}
-                    maximumDate={new Date()}
-                    minimumDate={new Date(1940, 0, 1)}
-                    textColor={COLORS.text}
-                    themeVariant="light"
-                    style={styles.dateTimePicker}
-                  />
-                </TouchableOpacity>
-              </TouchableOpacity>
-            </Modal>
-          )}
-
-          {/* Date Picker for Android */}
-          {Platform.OS === 'android' && showDatePicker && (
-            <DateTimePicker
-              value={dateOfBirth || new Date(2000, 0, 1)}
-              mode="date"
-              display="calendar"
-              onChange={handleDateChange}
-              maximumDate={new Date()}
-              minimumDate={new Date(1940, 0, 1)}
-            />
-          )}
 
           {/* Gender Selection */}
           <View style={styles.inputGroup}>
@@ -600,56 +688,62 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.semiBold,
     color: COLORS.white,
   },
-  // Modal Styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: COLORS.white,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingBottom: 40,
-    width: '100%',
-  },
-  modalHeader: {
+  // DOB Input Styles
+  dobContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: SIZES.padding,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.grayLight,
+    gap: 8,
   },
-  modalTitle: {
+  dobFieldContainer: {
+    backgroundColor: COLORS.white,
+    borderRadius: SIZES.radius,
+    height: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'transparent',
+    ...SHADOWS.small,
+    width: 60,
+  },
+  dobYearField: {
+    width: 80,
+  },
+  dobFieldFilled: {
+    borderColor: COLORS.primary + '30',
+  },
+  dobFieldError: {
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primary + '10',
+  },
+  dobInput: {
     fontSize: 18,
     fontFamily: FONTS.semiBold,
     color: COLORS.text,
-  },
-  modalCancelButton: {
-    fontSize: 16,
-    fontFamily: FONTS.regular,
-    color: COLORS.textSecondary,
-  },
-  modalDoneButton: {
-    fontSize: 16,
-    fontFamily: FONTS.semiBold,
-    color: COLORS.primary,
-  },
-  dateTimePicker: {
-    height: 200,
-    backgroundColor: COLORS.white, // Ensure white bg
+    textAlign: 'center',
     width: '100%',
+    height: '100%',
   },
-  dateText: {
-    flex: 1,
-    fontSize: 16,
-    fontFamily: FONTS.medium,
-    color: COLORS.text,
-  },
-  placeholderText: {
+  dobSeparator: {
+    fontSize: 24,
+    fontFamily: FONTS.regular,
     color: COLORS.textLight,
+  },
+  dobCheckContainer: {
+    marginLeft: 8,
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+    paddingHorizontal: 4,
+    gap: 8,
+  },
+  errorText: {
+    flex: 1,
+    fontSize: 12,
+    fontFamily: FONTS.medium,
+    color: COLORS.primary,
+    lineHeight: 18,
   },
   warningContainer: {
     flexDirection: 'row',

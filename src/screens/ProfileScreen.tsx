@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, ComponentProps } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Image,
   StatusBar,
-  Alert,
   Platform,
   Modal,
   Dimensions,
@@ -20,6 +19,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
 import SettingsScreen from './SettingsScreen';
+import { useToast, ConfirmDialog } from '../components';
 
 const { width, height } = Dimensions.get('window');
 
@@ -56,7 +56,7 @@ const MOCK_VIEWS = [
 
 export type ProfileStackParamList = {
   ProfileView: undefined;
-  Settings: undefined;
+  Settings: { section?: string } | undefined;
 };
 
 const Stack = createStackNavigator<ProfileStackParamList>();
@@ -70,6 +70,13 @@ interface UserProfile {
   bio: string;
   segment: string;
   photos: (string | null)[];
+}
+
+interface MenuItem {
+  icon: ComponentProps<typeof Ionicons>['name'];
+  title: string;
+  subtitle?: string;
+  onPress: () => void;
 }
 
 function ProfileViewScreen({ navigation }: ProfileViewProps) {
@@ -88,6 +95,16 @@ function ProfileViewScreen({ navigation }: ProfileViewProps) {
   const [showLikesModal, setShowLikesModal] = useState(false);
   const [showViewsModal, setShowViewsModal] = useState(false);
   const [insightsSubscriptionExpiry, setInsightsSubscriptionExpiry] = useState<Date | null>(null);
+  
+  // Dialog States
+  const [showDeletePhotoDialog, setShowDeletePhotoDialog] = useState(false);
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+  const [showDeleteAccountDialog, setShowDeleteAccountDialog] = useState(false);
+  const [showSubscribeDialog, setShowSubscribeDialog] = useState(false);
+  const [showNotEnoughCoinsDialog, setShowNotEnoughCoinsDialog] = useState(false);
+  const [pendingShowModal, setPendingShowModal] = useState<(() => void) | null>(null);
+  
+  const { showToast } = useToast();
 
   const INSIGHTS_MONTHLY_COST = 20;
 
@@ -130,12 +147,16 @@ function ProfileViewScreen({ navigation }: ProfileViewProps) {
     }
   };
 
-  const pickImage = async (index) => {
+  const pickImage = async (index: number): Promise<void> => {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       
       if (status !== 'granted') {
-        Alert.alert('Permission needed', 'Please grant camera roll permissions to add photos.');
+        showToast({
+          type: 'warning',
+          title: 'Permission needed',
+          message: 'Please grant camera roll permissions to add photos.',
+        });
         return;
       }
 
@@ -155,33 +176,31 @@ function ProfileViewScreen({ navigation }: ProfileViewProps) {
       }
     } catch (error) {
       console.log('Error picking image:', error);
-      Alert.alert('Error', 'Failed to pick image. Please try again.');
+      showToast({
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to pick image. Please try again.',
+      });
     }
   };
 
-  const deletePhoto = async (index) => {
-    Alert.alert(
-      'Delete Photo',
-      'Are you sure you want to delete this photo?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            const newPhotos = [...profile.photos];
-            newPhotos[index] = null;
-            
-            setProfile({ ...profile, photos: newPhotos });
-            await AsyncStorage.setItem('userPhotos', JSON.stringify(newPhotos));
-            setIsPhotoModalVisible(false);
-          },
-        },
-      ]
-    );
+  const deletePhoto = async (index: number): Promise<void> => {
+    setShowDeletePhotoDialog(true);
   };
 
-  const viewPhoto = (index) => {
+  const confirmDeletePhoto = async (): Promise<void> => {
+    if (selectedPhotoIndex !== null) {
+      const newPhotos = [...profile.photos];
+      newPhotos[selectedPhotoIndex] = null;
+      
+      setProfile({ ...profile, photos: newPhotos });
+      await AsyncStorage.setItem('userPhotos', JSON.stringify(newPhotos));
+      setIsPhotoModalVisible(false);
+    }
+    setShowDeletePhotoDialog(false);
+  };
+
+  const viewPhoto = (index: number): void => {
     if (profile.photos[index]) {
       setSelectedPhotoIndex(index);
       setIsPhotoModalVisible(true);
@@ -191,55 +210,44 @@ function ProfileViewScreen({ navigation }: ProfileViewProps) {
   };
 
   const handleLogout = () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: async () => {
-            await AsyncStorage.clear();
-            // Reload the app to trigger auth check in App.js
-            if (Platform.OS === 'web') {
-              window.location.reload();
-            } else {
-              // For native, use expo-updates to reload
-              try {
-                const Updates = require('expo-updates');
-                await Updates.reloadAsync();
-              } catch (e) {
-                // In development mode, show alert to manually restart
-                Alert.alert(
-                  'Logged Out',
-                  'Please close and reopen the app to complete logout.',
-                  [{ text: 'OK' }]
-                );
-              }
-            }
-          },
-        },
-      ]
-    );
+    setShowLogoutDialog(true);
+  };
+
+  const confirmLogout = async () => {
+    setShowLogoutDialog(false);
+    await AsyncStorage.clear();
+    // Reload the app to trigger auth check in App.js
+    if (Platform.OS === 'web') {
+      window.location.reload();
+    } else {
+      // For native, use expo-updates to reload
+      try {
+        const Updates = require('expo-updates');
+        await Updates.reloadAsync();
+      } catch (e) {
+        // In development mode, show toast to manually restart
+        showToast({
+          type: 'info',
+          title: 'Logged Out',
+          message: 'Please close and reopen the app to complete logout.',
+          duration: 5000,
+        });
+      }
+    }
   };
 
   const handleDeleteAccount = () => {
-    Alert.alert(
-      'Delete Account',
-      'Are you sure you want to delete your account? This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            await AsyncStorage.clear();
-            Alert.alert('Account Deleted', 'Your account has been deleted.');
-          },
-        },
-      ]
-    );
+    setShowDeleteAccountDialog(true);
+  };
+
+  const confirmDeleteAccount = async () => {
+    setShowDeleteAccountDialog(false);
+    await AsyncStorage.clear();
+    showToast({
+      type: 'info',
+      title: 'Account Deleted',
+      message: 'Your account has been deleted.',
+    });
   };
 
   const handleSubscribe = (showModal: () => void) => {
@@ -249,35 +257,28 @@ function ProfileViewScreen({ navigation }: ProfileViewProps) {
     } else {
       // Need to subscribe
       if (coinBalance >= INSIGHTS_MONTHLY_COST) {
-        Alert.alert(
-          'Unlock Insights',
-          `Subscribe for ${INSIGHTS_MONTHLY_COST} coins/month to see who likes you and who views your profile. This unlocks both features for 30 days.`,
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { 
-              text: 'Subscribe Now!', 
-              onPress: () => {
-                setCoinBalance(prev => prev - INSIGHTS_MONTHLY_COST);
-                const expiryDate = new Date();
-                expiryDate.setDate(expiryDate.getDate() + 30);
-                setInsightsSubscriptionExpiry(expiryDate);
-                Alert.alert('Subscribed!', 'You now have access to Likes and Views for 30 days.', [
-                  { text: 'OK', onPress: showModal }
-                ]);
-              }
-            }
-          ]
-        );
+        setPendingShowModal(() => showModal);
+        setShowSubscribeDialog(true);
       } else {
-        Alert.alert(
-          'Not Enough Coins',
-          `You need ${INSIGHTS_MONTHLY_COST} coins to subscribe. Get more coins?`,
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Get Coins', onPress: () => rootNavigation.navigate('GetCoins') }
-          ]
-        );
+        setShowNotEnoughCoinsDialog(true);
       }
+    }
+  };
+
+  const confirmSubscribe = () => {
+    setShowSubscribeDialog(false);
+    setCoinBalance(prev => prev - INSIGHTS_MONTHLY_COST);
+    const expiryDate = new Date();
+    expiryDate.setDate(expiryDate.getDate() + 30);
+    setInsightsSubscriptionExpiry(expiryDate);
+    showToast({
+      type: 'success',
+      title: 'Subscribed!',
+      message: 'You now have access to Likes and Views for 30 days.',
+    });
+    if (pendingShowModal) {
+      setTimeout(() => pendingShowModal(), 500);
+      setPendingShowModal(null);
     }
   };
 
@@ -289,7 +290,7 @@ function ProfileViewScreen({ navigation }: ProfileViewProps) {
     handleSubscribe(() => setShowViewsModal(true));
   };
 
-  const menuItems = [
+  const menuItems: MenuItem[] = [
     {
       icon: 'card-outline',
       title: 'Get Coins',
@@ -305,7 +306,7 @@ function ProfileViewScreen({ navigation }: ProfileViewProps) {
       icon: 'shield-checkmark-outline',
       title: 'Verify Photos',
       subtitle: 'Increase your matches',
-      onPress: () => Alert.alert('Photo Verification', 'Photo verification feature coming soon!'),
+      onPress: () => showToast({ type: 'info', title: 'Coming Soon', message: 'Photo verification feature coming soon!' }),
     },
     {
       icon: 'settings-outline',
@@ -315,17 +316,17 @@ function ProfileViewScreen({ navigation }: ProfileViewProps) {
     {
       icon: 'help-circle-outline',
       title: 'Help & Support',
-      onPress: () => Alert.alert('Help', 'Contact us at support@relun.com'),
+      onPress: () => showToast({ type: 'info', title: 'Help & Support', message: 'Contact us at support@relun.com' }),
     },
     {
       icon: 'document-text-outline',
       title: 'Privacy Policy',
-      onPress: () => Alert.alert('Privacy Policy', 'View our privacy policy'),
+      onPress: () => showToast({ type: 'info', title: 'Privacy Policy', message: 'Privacy policy available in settings' }),
     },
     {
       icon: 'information-circle-outline',
       title: 'About',
-      onPress: () => Alert.alert('About Relun', 'Version 1.0.0'),
+      onPress: () => showToast({ type: 'info', title: 'About Relun', message: 'Version 1.0.0' }),
     },
   ];
 
@@ -347,9 +348,11 @@ function ProfileViewScreen({ navigation }: ProfileViewProps) {
               </View>
             )}
             <View style={[styles.segmentBadge, { backgroundColor: segmentColor }]}>
-              <Text style={styles.segmentBadgeText}>
-                {profile.segment === 'relationship' ? '💍' : '🎉'}
-              </Text>
+              <Ionicons 
+                name={profile.segment === 'relationship' ? 'heart' : 'sparkles'} 
+                size={16} 
+                color={COLORS.white} 
+              />
             </View>
           </View>
 
@@ -392,7 +395,7 @@ function ProfileViewScreen({ navigation }: ProfileViewProps) {
           {!isInsightsActive() && (
             <View style={[styles.subscriptionBadge, { backgroundColor: COLORS.grayLight }]}>
               <Text style={[styles.subscriptionText, { color: COLORS.textSecondary }]}>
-                Unlock Likes & Views for {INSIGHTS_MONTHLY_COST} 🪙/month
+                Unlock Likes & Views for {INSIGHTS_MONTHLY_COST} coins/month
               </Text>
             </View>
           )}
@@ -469,7 +472,11 @@ function ProfileViewScreen({ navigation }: ProfileViewProps) {
         </View>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Made with ❤️ by Relun</Text>
+          <View style={styles.footerRow}>
+            <Text style={styles.footerText}>Made with </Text>
+            <Ionicons name="heart" size={14} color={COLORS.primary} />
+            <Text style={styles.footerText}> by Relun</Text>
+          </View>
           <Text style={styles.versionText}>Version 1.0.0</Text>
         </View>
       </ScrollView>
@@ -507,7 +514,7 @@ function ProfileViewScreen({ navigation }: ProfileViewProps) {
               style={styles.modalActionButton}
               onPress={() => {
                 setIsPhotoModalVisible(false);
-                setTimeout(() => pickImage(selectedPhotoIndex), 300);
+                setTimeout(() => selectedPhotoIndex !== null && pickImage(selectedPhotoIndex), 300);
               }}
             >
               <Ionicons name="image-outline" size={24} color={COLORS.white} />
@@ -516,7 +523,7 @@ function ProfileViewScreen({ navigation }: ProfileViewProps) {
 
             <TouchableOpacity 
               style={[styles.modalActionButton, styles.deleteActionButton]}
-              onPress={() => deletePhoto(selectedPhotoIndex)}
+              onPress={() => selectedPhotoIndex !== null && deletePhoto(selectedPhotoIndex)}
             >
               <Ionicons name="trash-outline" size={24} color={COLORS.error} />
               <Text style={[styles.modalActionText, { color: COLORS.error }]}>Delete</Text>
@@ -535,7 +542,7 @@ function ProfileViewScreen({ navigation }: ProfileViewProps) {
         <View style={styles.likesModalOverlay}>
           <View style={styles.likesModalContent}>
             <View style={styles.likesModalHeader}>
-              <Text style={styles.likesModalTitle}>Who Liked You 💕</Text>
+              <Text style={styles.likesModalTitle}>Who Liked You</Text>
               <TouchableOpacity onPress={() => setShowLikesModal(false)}>
                 <Ionicons name="close" size={28} color={COLORS.text} />
               </TouchableOpacity>
@@ -589,7 +596,7 @@ function ProfileViewScreen({ navigation }: ProfileViewProps) {
         <View style={styles.likesModalOverlay}>
           <View style={styles.likesModalContent}>
             <View style={styles.likesModalHeader}>
-              <Text style={styles.likesModalTitle}>Profile Views 👀</Text>
+              <Text style={styles.likesModalTitle}>Profile Views</Text>
               <TouchableOpacity onPress={() => setShowViewsModal(false)}>
                 <Ionicons name="close" size={28} color={COLORS.text} />
               </TouchableOpacity>
@@ -632,6 +639,66 @@ function ProfileViewScreen({ navigation }: ProfileViewProps) {
           </View>
         </View>
       </Modal>
+
+      {/* Confirmation Dialogs */}
+      <ConfirmDialog
+        visible={showDeletePhotoDialog}
+        title="Delete Photo"
+        message="Are you sure you want to delete this photo?"
+        confirmText="Delete"
+        cancelText="Cancel"
+        destructive
+        onConfirm={confirmDeletePhoto}
+        onCancel={() => setShowDeletePhotoDialog(false)}
+      />
+
+      <ConfirmDialog
+        visible={showLogoutDialog}
+        title="Logout"
+        message="Are you sure you want to logout?"
+        confirmText="Logout"
+        cancelText="Cancel"
+        destructive
+        onConfirm={confirmLogout}
+        onCancel={() => setShowLogoutDialog(false)}
+      />
+
+      <ConfirmDialog
+        visible={showDeleteAccountDialog}
+        title="Delete Account"
+        message="Are you sure you want to delete your account? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        destructive
+        onConfirm={confirmDeleteAccount}
+        onCancel={() => setShowDeleteAccountDialog(false)}
+      />
+
+      <ConfirmDialog
+        visible={showSubscribeDialog}
+        title="Unlock Insights"
+        message={`Subscribe for ${INSIGHTS_MONTHLY_COST} coins/month to see who likes you and who views your profile. This unlocks both features for 30 days.`}
+        confirmText="Subscribe Now!"
+        cancelText="Cancel"
+        onConfirm={confirmSubscribe}
+        onCancel={() => {
+          setShowSubscribeDialog(false);
+          setPendingShowModal(null);
+        }}
+      />
+
+      <ConfirmDialog
+        visible={showNotEnoughCoinsDialog}
+        title="Not Enough Coins"
+        message={`You need ${INSIGHTS_MONTHLY_COST} coins to subscribe. Get more coins?`}
+        confirmText="Get Coins"
+        cancelText="Cancel"
+        onConfirm={() => {
+          setShowNotEnoughCoinsDialog(false);
+          rootNavigation.navigate('GetCoins');
+        }}
+        onCancel={() => setShowNotEnoughCoinsDialog(false)}
+      />
     </View>
   );
 }
@@ -863,11 +930,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 24,
   },
+  footerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
   footerText: {
     fontSize: SIZES.body2,
     fontFamily: FONTS.regular,
     color: COLORS.textSecondary,
-    marginBottom: 4,
   },
   versionText: {
     fontSize: SIZES.body3,
