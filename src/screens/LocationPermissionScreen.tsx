@@ -16,6 +16,7 @@ import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { RootStackParamList } from '../types';
 import { useToast } from '../components';
+import { updateProfileLocation } from '../services/profile.service';
 
 type Props = StackScreenProps<RootStackParamList, 'LocationPermission'>;
 
@@ -62,6 +63,19 @@ export default function LocationPermissionScreen({ navigation }: Props) {
       
       setLocation(currentLocation);
       await AsyncStorage.setItem('userLocation', JSON.stringify(currentLocation));
+
+      try {
+        await updateProfileLocation({
+          latitude: currentLocation.coords.latitude,
+          longitude: currentLocation.coords.longitude,
+        });
+      } catch (updateError) {
+        showToast({
+          type: 'warning',
+          title: 'Location sync delayed',
+          message: 'Location was saved locally but failed to sync. You can continue.',
+        });
+      }
     } catch (error) {
       console.error('Error in permission flow:', error);
       // Even if permission flow fails completely, let's allow proceeding in dev

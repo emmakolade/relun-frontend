@@ -63,7 +63,8 @@ export default function LoginScreen({ navigation }: Props) {
         return;
       }
 
-      navigation.navigate('Welcome');
+      // App.tsx will switch to the main app stack when auth/profile state is complete.
+      return;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Login failed. Please try again.';
 

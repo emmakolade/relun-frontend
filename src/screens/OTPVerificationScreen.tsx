@@ -143,7 +143,8 @@ export default function OTPVerificationScreen({ navigation, route }: Props) {
       if (authData.needsProfileCompletion) {
         navigation.navigate('SegmentSelection');
       } else {
-        navigation.navigate('Welcome');
+        // App.tsx will switch to the main app stack when auth/profile state is complete.
+        return;
       }
     } catch (error) {
       showToast({

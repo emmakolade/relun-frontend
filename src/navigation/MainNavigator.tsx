@@ -3,7 +3,7 @@ import { View, Platform } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, SHADOWS } from '../constants/theme';
+import { COLORS } from '../constants/theme';
 import { MainTabParamList } from '../types';
 
 // Screens
@@ -17,9 +17,15 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 
 export default function MainNavigator() {
   const insets = useSafeAreaInsets();
+  const tabBarBottomOffset = Platform.OS === 'ios' ? 24 : 16 + insets.bottom;
+  const tabBarHeight = 64;
+  const tabContentBottomInset = tabBarBottomOffset + tabBarHeight + 8;
   
   return (
     <Tab.Navigator
+      sceneContainerStyle={{
+        paddingBottom: tabContentBottomInset,
+      }}
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarShowLabel: false, // Modern cleaner look
@@ -28,18 +34,15 @@ export default function MainNavigator() {
         tabBarStyle: {
           position: 'absolute', // Floating effect
           // Adjusted bottom spacing to account for Android navigation bar
-          bottom: Platform.OS === 'ios' ? 24 : 16 + insets.bottom,
+          bottom: tabBarBottomOffset,
           left: 20,
           right: 20,
           backgroundColor: COLORS.white,
           borderRadius: 32,
-          height: 64,
+          height: tabBarHeight,
           borderTopWidth: 0,
-          elevation: 8, // Android shadow
-          shadowColor: '#000', // iOS shadow
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.1,
-          shadowRadius: 12,
+          elevation: 0,
+          shadowOpacity: 0,
           paddingBottom: 0, // Reset default padding
           alignItems: 'center',
           justifyContent: 'center',

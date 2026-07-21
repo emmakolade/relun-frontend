@@ -86,7 +86,7 @@ export default function ChatScreen({ navigation, route }: Props) {
     }
   };
 
-  const formatTime = (date) => {
+  const formatTime = (date: Date): string => {
     const hours = date.getHours();
     const minutes = date.getMinutes();
     const ampm = hours >= 12 ? 'PM' : 'AM';

@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useToast } from '../components';
+import { completeProfile } from '../services/profile.service';
 
 import { RootStackParamList } from '../types';
 import { StackScreenProps } from '@react-navigation/stack';
@@ -35,6 +36,7 @@ export default function ProfileCreationScreen({ navigation, route }: Props) {
   const [bio, setBio] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const dayRef = useRef<TextInput>(null);
   const monthRef = useRef<TextInput>(null);
@@ -80,14 +82,6 @@ export default function ProfileCreationScreen({ navigation, route }: Props) {
 
   const isValidPhone = (phone: string) => {
     return /^\d{10,}$/.test(phone.replace(/[\s-]/g, ''));
-  };
-
-  const formatDate = (date: Date | null) => {
-    if (!date) return '';
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-    return `${day}/${month}/${year}`;
   };
 
   const calculateAge = (birthDate: Date) => {
@@ -225,26 +219,46 @@ export default function ProfileCreationScreen({ navigation, route }: Props) {
     }
 
     try {
-      await AsyncStorage.setItem('userName', name);
-      await AsyncStorage.setItem('userDateOfBirth', formatDate(dateOfBirth));
-      await AsyncStorage.setItem('userGender', gender);
-      await AsyncStorage.setItem('userBio', bio);
-      await AsyncStorage.setItem('userSegment', segment || '');
-      
+      setIsSubmitting(true);
+      const normalizedSegment = segment === 'fun' ? 'fun' : 'relationship';
+      const payload: {
+        fullName: string;
+        dateOfBirth: string;
+        gender: 'male' | 'female';
+        bio?: string;
+        segment: 'relationship' | 'fun';
+        email?: string;
+        phone?: string;
+      } = {
+        fullName: name.trim(),
+        dateOfBirth: dateOfBirth!.toISOString(),
+        gender: gender.toLowerCase() as 'male' | 'female',
+        bio: bio.trim() || undefined,
+        segment: normalizedSegment,
+      };
+
       if (authMethod === 'email') {
-        await AsyncStorage.setItem('userPhone', phone);
-      } else {
-        await AsyncStorage.setItem('userEmail', email);
+        payload.phone = phone.trim();
+        await AsyncStorage.setItem('userPhone', phone.trim());
       }
-      
+
+      if (authMethod === 'phone') {
+        payload.email = email.trim().toLowerCase();
+        await AsyncStorage.setItem('userEmail', email.trim().toLowerCase());
+      }
+
+      await completeProfile(payload);
+      await AsyncStorage.setItem('userSegment', normalizedSegment);
+
       navigation.navigate('LocationPermission');
     } catch (error) {
-      console.error('Error saving profile:', error);
       showToast({
         type: 'error',
         title: 'Error',
-        message: 'Failed to save profile. Please try again.',
+        message: error instanceof Error ? error.message : 'Failed to save profile. Please try again.',
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -482,12 +496,12 @@ export default function ProfileCreationScreen({ navigation, route }: Props) {
       {/* Continue Button */}
       <View style={styles.footer}>
         <TouchableOpacity
-          style={[styles.continueButton, !isValid() && styles.disabledButton]}
+          style={[styles.continueButton, (!isValid() || isSubmitting) && styles.disabledButton]}
           onPress={handleContinue}
-          disabled={!isValid()}
+          disabled={!isValid() || isSubmitting}
           activeOpacity={0.8}
         >
-          <Text style={styles.continueButtonText}>Continue</Text>
+          <Text style={styles.continueButtonText}>{isSubmitting ? 'Saving...' : 'Continue'}</Text>
           <Ionicons name="arrow-forward" size={20} color={COLORS.white} />
         </TouchableOpacity>
       </View>

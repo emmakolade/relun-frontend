@@ -58,7 +58,8 @@
           "cameraPermission": "Allow Relun to access your camera for profile verification."
         }
       ],
-      "expo-font"
+      "expo-font",
+      "expo-web-browser"
     ]
   }
 }

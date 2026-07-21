@@ -10,13 +10,14 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { CommonActions } from '@react-navigation/native';
 import { StackScreenProps } from '@react-navigation/stack';
 import * as ImagePicker from 'expo-image-picker';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { RootStackParamList } from '../types';
 import { useToast } from '../components';
+import { uploadProfilePhotos } from '../services/profile.service';
+import { refreshAuthState } from '../services/auth.service';
 
 const { width } = Dimensions.get('window');
 const PHOTO_GAP = 10;
@@ -26,6 +27,7 @@ type Props = StackScreenProps<RootStackParamList, 'PhotoUpload'>;
 
 export default function PhotoUploadScreen({ navigation }: Props) {
   const [photos, setPhotos] = useState<(string | null)[]>([null, null, null, null, null, null]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { showToast } = useToast();
 
   const pickImage = async (index: number) => {
@@ -75,24 +77,26 @@ export default function PhotoUploadScreen({ navigation }: Props) {
   const handleContinue = async () => {
     if (hasMinPhotos) {
       try {
-        await AsyncStorage.setItem('userPhotos', JSON.stringify(photos.filter(p => p !== null)));
+        setIsSubmitting(true);
+        const selectedPhotos = photos.filter((p): p is string => p !== null);
+
+        const uploadedPhotos = await uploadProfilePhotos(selectedPhotos, { minimumRequired: 3 });
+        const uploadedPhotoUrls = uploadedPhotos.map((photo) => photo.url);
+
+        await AsyncStorage.setItem('userPhotos', JSON.stringify(uploadedPhotoUrls));
         
         // Complete profile
         await AsyncStorage.setItem('hasProfile', 'true');
-        
-        navigation.dispatch(
-          CommonActions.reset({
-            index: 0,
-            routes: [{ name: 'Welcome' }],
-          })
-        );
+
+        await refreshAuthState();
       } catch (error) {
-        console.error('Error completing profile:', error);
         showToast({
           type: 'error',
           title: 'Error',
-          message: 'Failed to complete profile. Please try again.',
+          message: error instanceof Error ? error.message : 'Failed to upload photos. Please try again.',
         });
+      } finally {
+        setIsSubmitting(false);
       }
     }
   };
@@ -217,12 +221,12 @@ export default function PhotoUploadScreen({ navigation }: Props) {
       {/* Continue Button */}
       <View style={styles.footer}>
         <TouchableOpacity
-          style={[styles.continueButton, !hasMinPhotos && styles.disabledButton]}
+          style={[styles.continueButton, (!hasMinPhotos || isSubmitting) && styles.disabledButton]}
           onPress={handleContinue}
-          disabled={!hasMinPhotos}
+          disabled={!hasMinPhotos || isSubmitting}
           activeOpacity={0.8}
         >
-          <Text style={styles.continueButtonText}>Complete Profile</Text>
+          <Text style={styles.continueButtonText}>{isSubmitting ? 'Uploading...' : 'Complete Profile'}</Text>
           <Ionicons name="checkmark" size={20} color={COLORS.white} />
         </TouchableOpacity>
       </View>

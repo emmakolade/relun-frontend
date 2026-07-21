@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { AppState } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFonts } from 'expo-font';
 import { Outfit_400Regular, Outfit_500Medium, Outfit_600SemiBold, Outfit_700Bold } from '@expo-google-fonts/outfit';
 import { Pacifico_400Regular } from '@expo-google-fonts/pacifico';
@@ -22,7 +23,7 @@ import MainNavigator from './src/navigation/MainNavigator';
 import ChatScreen from './src/screens/ChatScreen';
 import ProfileViewScreen from './src/screens/ProfileViewScreen';
 import GetCoinsScreen from './src/screens/GetCoinsScreen';
-import { getStoredAccessToken } from './src/services/auth.service';
+import { getStoredAccessToken, subscribeToAuthState } from './src/services/auth.service';
 
 const Stack = createStackNavigator<RootStackParamList>();
 
@@ -41,6 +42,10 @@ export default function App() {
   useEffect(() => {
     checkLoginStatus();
 
+    const unsubscribeAuthState = subscribeToAuthState(() => {
+      void checkLoginStatus();
+    });
+
     // Listen for app state changes to recheck login
     const subscription = AppState.addEventListener('change', (nextAppState) => {
       if (nextAppState === 'active') {
@@ -49,6 +54,7 @@ export default function App() {
     });
 
     return () => {
+      unsubscribeAuthState();
       subscription?.remove();
     };
   }, []);
@@ -56,7 +62,9 @@ export default function App() {
   const checkLoginStatus = async () => {
     try {
       const userToken = await getStoredAccessToken();
-      setIsLoggedIn(!!userToken);
+      const hasProfile = await AsyncStorage.getItem('hasProfile');
+      const isProfileComplete = hasProfile === 'true';
+      setIsLoggedIn(!!userToken && isProfileComplete);
     } catch (error) {
       console.log('Error checking login status:', error);
     } finally {

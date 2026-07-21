@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -15,8 +15,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StackScreenProps } from '@react-navigation/stack';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
-import { RootStackParamList, Match } from '../types';
+import { RootStackParamList, Match, User } from '../types';
 import { useToast, ConfirmDialog } from '../components';
+import { getLikeStatus, getUserProfileById, likeUser } from '../services/profile.service';
 
 const { width } = Dimensions.get('window');
 
@@ -24,13 +25,72 @@ type Props = StackScreenProps<RootStackParamList, 'ProfileView'>;
 
 export default function ProfileViewScreen({ navigation, route }: Props) {
   const { user } = route.params;
+  const [profileUser, setProfileUser] = useState<User>(user);
   const [showCoinModal, setShowCoinModal] = useState(false);
   const [coinBalance, setCoinBalance] = useState(100); // Mock balance
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const [showFullImage, setShowFullImage] = useState(false);
+  const [likedUser, setLikedUser] = useState(false);
+  const [isCheckingLikeStatus, setIsCheckingLikeStatus] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
   const { showToast } = useToast();
   const [showTopUpDialog, setShowTopUpDialog] = useState(false);
+
+  const formatDistanceLabel = (distanceKm?: number) => {
+    if (typeof distanceKm !== 'number' || Number.isNaN(distanceKm)) {
+      return 'Nearby';
+    }
+
+    if (distanceKm < 0.5) {
+      return 'Very close by';
+    }
+
+    if (distanceKm < 1) {
+      return '< 1 km away';
+    }
+
+    if (distanceKm < 10) {
+      return `${distanceKm.toFixed(1)} km away`;
+    }
+
+    return `${Math.round(distanceKm)} km away`;
+  };
+
+  const distanceKm =
+    typeof profileUser.location?.distance === 'number'
+      ? (profileUser.location.distance as number)
+      : undefined;
+  const distanceLabel = formatDistanceLabel(distanceKm);
+
+  useEffect(() => {
+    const loadProfileDetails = async () => {
+      try {
+        const detailedProfile = await getUserProfileById(user.id);
+        setProfileUser((prev) => ({
+          ...prev,
+          ...detailedProfile,
+          photos: detailedProfile.photos.length > 0 ? detailedProfile.photos : prev.photos,
+        }));
+      } catch (_error) {
+        // Fallback to navigation payload if request fails.
+      }
+    };
+
+    const loadLikeStatus = async () => {
+      try {
+        setIsCheckingLikeStatus(true);
+        const status = await getLikeStatus(user.id);
+        setLikedUser(!!status.liked);
+      } catch (_error) {
+        // Keep screen usable if status lookup fails.
+      } finally {
+        setIsCheckingLikeStatus(false);
+      }
+    };
+
+    void loadProfileDetails();
+    void loadLikeStatus();
+  }, [user.id]);
 
   const scrollToIndex = (index: number) => {
     scrollViewRef.current?.scrollTo({ x: index * width, animated: true });
@@ -41,16 +101,49 @@ export default function ProfileViewScreen({ navigation, route }: Props) {
     setShowCoinModal(true);
   };
 
+  const handleLikeUser = async () => {
+    if (likedUser) {
+      return;
+    }
+
+    try {
+      const response = await likeUser(user.id);
+
+      setLikedUser(true);
+
+      if (response.isMutual) {
+        showToast({
+          type: 'success',
+          title: "It's a match!",
+          message: `You and ${profileUser.name} liked each other.`,
+        });
+        return;
+      }
+
+      showToast({
+        type: 'success',
+        title: 'Liked',
+        message: `You liked ${profileUser.name}.`,
+      });
+    } catch (error) {
+      showToast({
+        type: 'error',
+        title: 'Unable to like user',
+        message: error instanceof Error ? error.message : 'Please try again.',
+      });
+    }
+  };
+
   const confirmUnlock = () => {
     if (coinBalance >= 15) {
       setCoinBalance(prev => prev - 15);
       setShowCoinModal(false);
       
       const matchData: Match = {
-        id: user.id,
-        name: user.name,
-        age: user.age,
-        photo: user.photos[0],
+        id: profileUser.id,
+        name: profileUser.name,
+        age: profileUser.age,
+        photo: profileUser.photos[0],
         timestamp: new Date().toISOString(),
       };
       
@@ -75,7 +168,7 @@ export default function ProfileViewScreen({ navigation, route }: Props) {
           </View>
           <Text style={styles.modalTitle}>Start Conversation?</Text>
           <Text style={styles.modalText}>
-            Unlock chat with <Text style={styles.highlightText}>{user.name}</Text> for <Text style={styles.coinText}>15 Coins</Text>.
+            Unlock chat with <Text style={styles.highlightText}>{profileUser.name}</Text> for <Text style={styles.coinText}>15 Coins</Text>.
           </Text>
           
           <View style={styles.modalButtons}>
@@ -115,7 +208,7 @@ export default function ProfileViewScreen({ navigation, route }: Props) {
         </TouchableOpacity>
         
         <Image
-          source={{ uri: user.photos[activePhotoIndex] }}
+          source={{ uri: profileUser.photos[activePhotoIndex] }}
           style={styles.fullImage}
           resizeMode="contain"
         />
@@ -144,8 +237,8 @@ export default function ProfileViewScreen({ navigation, route }: Props) {
             }}
             scrollEventThrottle={16}
           >
-            {user.photos && user.photos.length > 0 ? (
-              user.photos.map((photo, index) => (
+            {profileUser.photos && profileUser.photos.length > 0 ? (
+              profileUser.photos.map((photo, index) => (
                 <TouchableOpacity
                   key={index}
                   activeOpacity={0.9}
@@ -180,7 +273,7 @@ export default function ProfileViewScreen({ navigation, route }: Props) {
             </TouchableOpacity>
           )}
 
-          {user.photos && activePhotoIndex < user.photos.length - 1 && (
+          {profileUser.photos && activePhotoIndex < profileUser.photos.length - 1 && (
             <TouchableOpacity 
               style={[styles.navArrowContainer, styles.navArrowRight]}
               onPress={() => scrollToIndex(activePhotoIndex + 1)}
@@ -190,9 +283,9 @@ export default function ProfileViewScreen({ navigation, route }: Props) {
           )}
           
           {/* Pagination Dots */}
-          {user.photos && user.photos.length > 1 && (
+          {profileUser.photos && profileUser.photos.length > 1 && (
             <View style={styles.paginationContainer}>
-              {user.photos.map((_, index) => (
+              {profileUser.photos.map((_, index) => (
                 <View
                   key={index}
                   style={[
@@ -218,21 +311,21 @@ export default function ProfileViewScreen({ navigation, route }: Props) {
         <View style={styles.infoContainer}>
           <View style={styles.headerInfo}>
             <View>
-              <Text style={styles.name}>{user.name}, {user.age}</Text>
+              <Text style={styles.name}>{profileUser.name}, {profileUser.age}</Text>
               <Text style={styles.location}>
-                <Ionicons name="location-sharp" size={16} color={COLORS.textSecondary} /> New York, USA
+                <Ionicons name="location-sharp" size={16} color={COLORS.textSecondary} /> {distanceLabel}
               </Text>
             </View>
             <View style={styles.segmentBadge}>
-              <Text style={[styles.segmentText, { color: user.segment === 'relationship' ? COLORS.primary : COLORS.fun }]}>
-                {user.segment === 'relationship' ? 'Relationship' : 'Fun'}
+              <Text style={[styles.segmentText, { color: profileUser.segment === 'relationship' ? COLORS.primary : COLORS.fun }]}>
+                {profileUser.segment === 'relationship' ? 'Here for love' : 'Here for fun'}
               </Text>
             </View>
           </View>
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>About</Text>
-            <Text style={styles.bio}>{user.bio}</Text>
+            <Text style={styles.bio}>{profileUser.bio}</Text>
           </View>
 
           <View style={styles.section}>
@@ -250,13 +343,18 @@ export default function ProfileViewScreen({ navigation, route }: Props) {
 
       {/* Bottom Action Bar */}
       <View style={styles.actionBar}>
-        <View style={styles.balanceContainer}>
-          <Text style={styles.balanceLabel}>Your Balance:</Text>
-          <Text style={styles.balanceValue}>{coinBalance} coins</Text>
-        </View>
-
-        <TouchableOpacity style={styles.waveButton}>
-          <Ionicons name="hand-right-outline" size={24} color={COLORS.primary} />
+        <TouchableOpacity
+          style={[styles.waveButton, likedUser && styles.waveButtonActive]}
+          onPress={() => {
+            void handleLikeUser();
+          }}
+          disabled={likedUser || isCheckingLikeStatus}
+        >
+          <Ionicons
+            name={likedUser ? 'heart' : 'heart-outline'}
+            size={24}
+            color={likedUser ? COLORS.white : COLORS.primary}
+          />
         </TouchableOpacity>
 
         <TouchableOpacity 
@@ -442,19 +540,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 10,
     elevation: 20,
-  },
-  balanceContainer: {
-    marginRight: 15,
-  },
-  balanceLabel: {
-    fontSize: 10,
-    color: COLORS.textSecondary,
-    fontFamily: FONTS.regular,
-  },
-  balanceValue: {
-    fontSize: 14,
-    fontFamily: FONTS.bold,
-    color: COLORS.text,
+    justifyContent: 'space-between',
   },
   waveButton: {
     width: 50,
@@ -466,6 +552,10 @@ const styles = StyleSheet.create({
     marginRight: 15,
     borderWidth: 1,
     borderColor: COLORS.border,
+  },
+  waveButtonActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
   },
   chatButton: {
     flex: 1,

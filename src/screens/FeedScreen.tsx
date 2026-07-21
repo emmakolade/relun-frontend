@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -17,225 +17,96 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
 import { RootStackParamList, User } from '../types';
+import { useToast } from '../components';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getDiscoverUsers, likeUser } from '../services/profile.service';
 
 const { width } = Dimensions.get('window');
 const TILE_GAP = 8;
 const TILE_WIDTH = (width - 40 - TILE_GAP * 2) / 3; // 3 columns with padding
 
-// Extended Mock Data
-const MOCK_USERS: User[] = [
-  {
-    id: '1',
-    name: 'Sarah',
-    age: 28,
-    bio: 'Love traveling, coffee enthusiast',
-    photos: [
-      'https://randomuser.me/api/portraits/women/1.jpg',
-      'https://randomuser.me/api/portraits/women/68.jpg',
-      'https://randomuser.me/api/portraits/women/65.jpg'
-    ],
-    segment: 'relationship',
-  },
-  {
-    id: '2',
-    name: 'Emma',
-    age: 26,
-    bio: 'Yoga instructor | Dog lover',
-    photos: [
-      'https://randomuser.me/api/portraits/women/2.jpg',
-      'https://randomuser.me/api/portraits/women/42.jpg'
-    ],
-    segment: 'relationship',
-  },
-  {
-    id: '3',
-    name: 'Jessica',
-    age: 29,
-    bio: 'Foodie | Adventure seeker',
-    photos: ['https://randomuser.me/api/portraits/women/3.jpg'],
-    segment: 'fun',
-  },
-  {
-    id: '4',
-    name: 'Michael',
-    age: 30,
-    bio: 'Photographer | Hiker',
-    photos: ['https://randomuser.me/api/portraits/men/4.jpg'],
-    segment: 'relationship',
-  },
-  {
-    id: '5',
-    name: 'David',
-    age: 27,
-    bio: 'Software Engineer | Gamer',
-    photos: ['https://randomuser.me/api/portraits/men/5.jpg'],
-    segment: 'fun',
-  },
-  {
-    id: '6',
-    name: 'Olivia',
-    age: 25,
-    bio: 'Music lover | Coffee addict',
-    photos: ['https://randomuser.me/api/portraits/women/6.jpg'],
-    segment: 'relationship',
-  },
-  {
-    id: '7',
-    name: 'James',
-    age: 31,
-    bio: 'Traveler | Foodie',
-    photos: ['https://randomuser.me/api/portraits/men/7.jpg'],
-    segment: 'fun',
-  },
-  {
-    id: '8',
-    name: 'Sophia',
-    age: 24,
-    bio: 'Artist | Book worm',
-    photos: ['https://randomuser.me/api/portraits/women/8.jpg'],
-    segment: 'relationship',
-  },
-  {
-    id: '9',
-    name: 'Ava',
-    age: 23,
-    bio: 'Dancer | Beach vibes',
-    photos: ['https://randomuser.me/api/portraits/women/9.jpg'],
-    segment: 'fun',
-  },
-  {
-    id: '10',
-    name: 'Ethan',
-    age: 29,
-    bio: 'Fitness coach | Nature lover',
-    photos: ['https://randomuser.me/api/portraits/men/10.jpg'],
-    segment: 'relationship',
-  },
-  {
-    id: '11',
-    name: 'Mia',
-    age: 27,
-    bio: 'Chef | Wine enthusiast',
-    photos: ['https://randomuser.me/api/portraits/women/11.jpg'],
-    segment: 'relationship',
-  },
-  {
-    id: '12',
-    name: 'Noah',
-    age: 26,
-    bio: 'Musician | Night owl',
-    photos: ['https://randomuser.me/api/portraits/men/12.jpg'],
-    segment: 'fun',
-  },
-  {
-    id: '13',
-    name: 'Isabella',
-    age: 25,
-    bio: 'Fashion designer | Cat mom',
-    photos: ['https://randomuser.me/api/portraits/women/13.jpg'],
-    segment: 'relationship',
-  },
-  {
-    id: '14',
-    name: 'Liam',
-    age: 32,
-    bio: 'Architect | Coffee snob',
-    photos: ['https://randomuser.me/api/portraits/men/14.jpg'],
-    segment: 'relationship',
-  },
-  {
-    id: '15',
-    name: 'Charlotte',
-    age: 28,
-    bio: 'Nurse | Plant parent',
-    photos: ['https://randomuser.me/api/portraits/women/15.jpg'],
-    segment: 'relationship',
-  },
-  {
-    id: '16',
-    name: 'Lucas',
-    age: 24,
-    bio: 'DJ | Party animal',
-    photos: ['https://randomuser.me/api/portraits/men/16.jpg'],
-    segment: 'fun',
-  },
-  {
-    id: '17',
-    name: 'Amelia',
-    age: 26,
-    bio: 'Teacher | Gym enthusiast',
-    photos: ['https://randomuser.me/api/portraits/women/17.jpg'],
-    segment: 'relationship',
-  },
-  {
-    id: '18',
-    name: 'Mason',
-    age: 28,
-    bio: 'Entrepreneur | Tech geek',
-    photos: ['https://randomuser.me/api/portraits/men/18.jpg'],
-    segment: 'relationship',
-  },
-  {
-    id: '19',
-    name: 'Harper',
-    age: 23,
-    bio: 'Model | Wanderlust',
-    photos: ['https://randomuser.me/api/portraits/women/19.jpg'],
-    segment: 'fun',
-  },
-  {
-    id: '20',
-    name: 'Alexander',
-    age: 30,
-    bio: 'Doctor | Sports fanatic',
-    photos: ['https://randomuser.me/api/portraits/men/20.jpg'],
-    segment: 'relationship',
-  },
-  {
-    id: '21',
-    name: 'Evelyn',
-    age: 27,
-    bio: 'Lawyer | Bookworm',
-    photos: ['https://randomuser.me/api/portraits/women/21.jpg'],
-    segment: 'relationship',
-  },
-  {
-    id: '22',
-    name: 'Daniel',
-    age: 25,
-    bio: 'Bartender | Movie buff',
-    photos: ['https://randomuser.me/api/portraits/men/22.jpg'],
-    segment: 'fun',
-  },
-  {
-    id: '23',
-    name: 'Abigail',
-    age: 24,
-    bio: 'Graphic designer | Foodie',
-    photos: ['https://randomuser.me/api/portraits/women/23.jpg'],
-    segment: 'fun',
-  },
-  {
-    id: '24',
-    name: 'Henry',
-    age: 29,
-    bio: 'Pilot | Adventure seeker',
-    photos: ['https://randomuser.me/api/portraits/men/24.jpg'],
-    segment: 'relationship',
-  },
-];
-
 type FeedScreenNavigationProp = StackNavigationProp<RootStackParamList>;
 
 export default function FeedScreen() {
   const navigation = useNavigation<FeedScreenNavigationProp>();
-  const [users, setUsers] = useState<User[]>(MOCK_USERS);
-  const [wavedUsers, setWavedUsers] = useState<string[]>([]);
+  const { showToast } = useToast();
+  const [users, setUsers] = useState<User[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [likedUsers, setLikedUsers] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid');
 
-  const handleWave = (userId: string) => {
-    if (wavedUsers.includes(userId)) return;
-    setWavedUsers([...wavedUsers, userId]);
+  const loadDiscoverUsers = useCallback(async () => {
+    try {
+      setIsLoading(true);
+
+      const locationRaw = await AsyncStorage.getItem('userLocation');
+      let latitude: number | undefined;
+      let longitude: number | undefined;
+
+      if (locationRaw) {
+        try {
+          const parsed = JSON.parse(locationRaw) as {
+            coords?: { latitude?: number; longitude?: number };
+          };
+
+          latitude = parsed.coords?.latitude;
+          longitude = parsed.coords?.longitude;
+        } catch (_error) {
+          // Ignore malformed local cache and fallback to non-location discover.
+        }
+      }
+
+      const responseUsers = await getDiscoverUsers({
+        latitude,
+        longitude,
+        limit: 50,
+      });
+
+      setUsers(responseUsers);
+    } catch (error) {
+      showToast({
+        type: 'error',
+        title: 'Discover unavailable',
+        message: error instanceof Error ? error.message : 'Failed to load profiles.',
+      });
+      setUsers([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [showToast]);
+
+  useEffect(() => {
+    void loadDiscoverUsers();
+  }, [loadDiscoverUsers]);
+
+  const handleLike = async (userId: string, userName: string) => {
+    if (likedUsers.includes(userId)) return;
+
+    try {
+      const response = await likeUser(userId);
+      setLikedUsers((prev) => [...prev, userId]);
+
+      if (response.isMutual) {
+        showToast({
+          type: 'success',
+          title: "It's a match!",
+          message: `You and ${userName} liked each other.`,
+        });
+        return;
+      }
+
+      showToast({
+        type: 'success',
+        title: 'Liked',
+        message: `You liked ${userName}.`,
+      });
+    } catch (error) {
+      showToast({
+        type: 'error',
+        title: 'Unable to like user',
+        message: error instanceof Error ? error.message : 'Please try again.',
+      });
+    }
   };
 
   const toggleViewMode = () => {
@@ -244,7 +115,7 @@ export default function FeedScreen() {
 
   // List View Card
   const renderListItem = ({ item }: { item: User }) => {
-    const isWaved = wavedUsers.includes(item.id);
+    const isLiked = likedUsers.includes(item.id);
 
     return (
       <TouchableOpacity
@@ -271,18 +142,18 @@ export default function FeedScreen() {
             <TouchableOpacity
               style={[
                 styles.waveButton,
-                isWaved && styles.waveButtonActive
+                isLiked && styles.waveButtonActive
               ]}
               onPress={(e) => {
                 e.stopPropagation();
-                handleWave(item.id);
+                void handleLike(item.id, item.name);
               }}
-              disabled={isWaved}
+              disabled={isLiked}
             >
               <Ionicons 
-                name={isWaved ? "hand-right" : "hand-right-outline"} 
+                name={isLiked ? 'heart' : 'heart-outline'}
                 size={24} 
-                color={isWaved ? COLORS.white : COLORS.primary} 
+                color={isLiked ? COLORS.white : COLORS.primary} 
               />
             </TouchableOpacity>
           </View>
@@ -302,7 +173,7 @@ export default function FeedScreen() {
 
   // Grid/Tile View Card
   const renderGridItem = ({ item }: { item: User }) => {
-    const isWaved = wavedUsers.includes(item.id);
+    const isLiked = likedUsers.includes(item.id);
 
     return (
       <TouchableOpacity
@@ -321,18 +192,18 @@ export default function FeedScreen() {
           <TouchableOpacity
             style={[
               styles.tileWaveButton,
-              isWaved && styles.tileWaveButtonActive
+              isLiked && styles.tileWaveButtonActive
             ]}
             onPress={(e) => {
               e.stopPropagation();
-              handleWave(item.id);
+              void handleLike(item.id, item.name);
             }}
-            disabled={isWaved}
+            disabled={isLiked}
           >
             <Ionicons 
-              name={isWaved ? "hand-right" : "hand-right-outline"} 
+              name={isLiked ? 'heart' : 'heart-outline'}
               size={14} 
-              color={isWaved ? COLORS.white : COLORS.primary} 
+              color={isLiked ? COLORS.white : COLORS.primary} 
             />
           </TouchableOpacity>
         </LinearGradient>
@@ -383,6 +254,11 @@ export default function FeedScreen() {
           data={users}
           renderItem={renderListItem}
           keyExtractor={(item) => item.id}
+          refreshing={isLoading}
+          onRefresh={() => {
+            void loadDiscoverUsers();
+          }}
+          ListEmptyComponent={<Text style={styles.emptyText}>No profiles found yet.</Text>}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
         />
@@ -394,6 +270,11 @@ export default function FeedScreen() {
           keyExtractor={(item) => item.id}
           numColumns={3}
           columnWrapperStyle={styles.gridRow}
+          refreshing={isLoading}
+          onRefresh={() => {
+            void loadDiscoverUsers();
+          }}
+          ListEmptyComponent={<Text style={styles.emptyText}>No profiles found yet.</Text>}
           contentContainerStyle={styles.gridContent}
           showsVerticalScrollIndicator={false}
         />
@@ -450,6 +331,12 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.semiBold,
     color: '#D4AF37',
     fontSize: 14,
+  },
+  emptyText: {
+    textAlign: 'center',
+    fontFamily: FONTS.medium,
+    color: COLORS.textSecondary,
+    marginTop: 24,
   },
   
   // List View Styles

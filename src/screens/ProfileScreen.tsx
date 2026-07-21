@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Image,
   StatusBar,
-  Platform,
   Modal,
   Dimensions,
   FlatList,
@@ -19,30 +18,28 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
 import SettingsScreen from './SettingsScreen';
+import EditProfileScreen from './EditProfileScreen';
 import { useToast, ConfirmDialog } from '../components';
+import { clearAuthSession, logout } from '../services/auth.service';
+import {
+  deleteProfilePhoto,
+  getCurrentUserProfileDetails,
+  getReceivedLikes,
+  replaceProfilePhoto,
+  uploadProfilePhotos,
+} from '../services/profile.service';
+import { User } from '../types';
 
 const { width, height } = Dimensions.get('window');
-
-// Mock data for likes and views
-const MOCK_LIKES = [
-  { id: '1', name: 'Emma', age: 26, photo: 'https://randomuser.me/api/portraits/women/2.jpg' },
-  { id: '2', name: 'Sophia', age: 24, photo: 'https://randomuser.me/api/portraits/women/8.jpg' },
-  { id: '3', name: 'Olivia', age: 25, photo: 'https://randomuser.me/api/portraits/women/6.jpg' },
-  { id: '4', name: 'Ava', age: 23, photo: 'https://randomuser.me/api/portraits/women/9.jpg' },
-  { id: '5', name: 'Mia', age: 27, photo: 'https://randomuser.me/api/portraits/women/11.jpg' },
-  { id: '6', name: 'Isabella', age: 25, photo: 'https://randomuser.me/api/portraits/women/13.jpg' },
-  { id: '7', name: 'Charlotte', age: 28, photo: 'https://randomuser.me/api/portraits/women/15.jpg' },
-  { id: '8', name: 'Amelia', age: 26, photo: 'https://randomuser.me/api/portraits/women/17.jpg' },
-  { id: '9', name: 'Harper', age: 23, photo: 'https://randomuser.me/api/portraits/women/19.jpg' },
-  { id: '10', name: 'Evelyn', age: 27, photo: 'https://randomuser.me/api/portraits/women/21.jpg' },
-  { id: '11', name: 'Abigail', age: 24, photo: 'https://randomuser.me/api/portraits/women/23.jpg' },
-  { id: '12', name: 'Emily', age: 25, photo: 'https://randomuser.me/api/portraits/women/25.jpg' },
-];
 
 const MOCK_VIEWS = [
   { id: 'v1', name: 'Sarah', age: 28, photo: 'https://randomuser.me/api/portraits/women/1.jpg' },
   { id: 'v2', name: 'Jessica', age: 29, photo: 'https://randomuser.me/api/portraits/women/3.jpg' },
-  ...MOCK_LIKES.map(like => ({ ...like, id: `v${parseInt(like.id) + 2}` })),
+  { id: 'v3', name: 'Emma', age: 26, photo: 'https://randomuser.me/api/portraits/women/2.jpg' },
+  { id: 'v4', name: 'Sophia', age: 24, photo: 'https://randomuser.me/api/portraits/women/8.jpg' },
+  { id: 'v5', name: 'Olivia', age: 25, photo: 'https://randomuser.me/api/portraits/women/6.jpg' },
+  { id: 'v6', name: 'Ava', age: 23, photo: 'https://randomuser.me/api/portraits/women/9.jpg' },
+  { id: 'v7', name: 'Mia', age: 27, photo: 'https://randomuser.me/api/portraits/women/11.jpg' },
   { id: 'v15', name: 'Luna', age: 22, photo: 'https://randomuser.me/api/portraits/women/27.jpg' },
   { id: 'v16', name: 'Chloe', age: 26, photo: 'https://randomuser.me/api/portraits/women/29.jpg' },
   { id: 'v17', name: 'Penelope', age: 24, photo: 'https://randomuser.me/api/portraits/women/31.jpg' },
@@ -56,6 +53,7 @@ const MOCK_VIEWS = [
 
 export type ProfileStackParamList = {
   ProfileView: undefined;
+  EditProfile: undefined;
   Settings: { section?: string } | undefined;
 };
 
@@ -71,6 +69,11 @@ interface UserProfile {
   segment: string;
   photos: (string | null)[];
 }
+
+type ProfilePhotoSlot = {
+  id: string;
+  url: string;
+};
 
 interface MenuItem {
   icon: ComponentProps<typeof Ionicons>['name'];
@@ -94,6 +97,8 @@ function ProfileViewScreen({ navigation }: ProfileViewProps) {
   const [coinBalance, setCoinBalance] = useState(100); // Mock balance
   const [showLikesModal, setShowLikesModal] = useState(false);
   const [showViewsModal, setShowViewsModal] = useState(false);
+  const [receivedLikes, setReceivedLikes] = useState<User[]>([]);
+  const [photoSlots, setPhotoSlots] = useState<(ProfilePhotoSlot | null)[]>([null, null, null]);
   const [insightsSubscriptionExpiry, setInsightsSubscriptionExpiry] = useState<Date | null>(null);
   
   // Dialog States
@@ -121,10 +126,52 @@ function ProfileViewScreen({ navigation }: ProfileViewProps) {
 
   useEffect(() => {
     loadProfile();
+    void loadReceivedLikes();
   }, []);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      void loadProfile();
+    });
+
+    return unsubscribe;
+  }, [navigation]);
+
+  const loadReceivedLikes = async () => {
+    try {
+      const likes = await getReceivedLikes(100);
+      setReceivedLikes(likes);
+    } catch (error) {
+      console.log('Error loading received likes:', error);
+    }
+  };
 
   const loadProfile = async () => {
     try {
+      const apiProfile = await getCurrentUserProfileDetails();
+
+      if (apiProfile.name) {
+        const firstThreeSlots = [0, 1, 2].map((index) => {
+          const photo = apiProfile.photoDetails[index];
+          return photo ? { id: photo.id, url: photo.url } : null;
+        });
+
+        setPhotoSlots(firstThreeSlots);
+
+        setProfile(apiProfile);
+
+        await AsyncStorage.multiSet([
+          ['userName', apiProfile.name],
+          ['userAge', apiProfile.age],
+          ['userGender', apiProfile.gender],
+          ['userBio', apiProfile.bio],
+          ['userSegment', apiProfile.segment],
+          ['userPhotos', JSON.stringify(apiProfile.photos)],
+        ]);
+
+        return;
+      }
+
       const name = await AsyncStorage.getItem('userName');
       const age = await AsyncStorage.getItem('userAge');
       const gender = await AsyncStorage.getItem('userGender');
@@ -168,11 +215,27 @@ function ProfileViewScreen({ navigation }: ProfileViewProps) {
       });
 
       if (!result.canceled && result.assets[0]) {
-        const newPhotos = [...profile.photos];
-        newPhotos[index] = result.assets[0].uri;
-        
-        setProfile({ ...profile, photos: newPhotos });
-        await AsyncStorage.setItem('userPhotos', JSON.stringify(newPhotos));
+        const selectedUri = result.assets[0].uri;
+        const existingSlot = photoSlots[index];
+
+        if (existingSlot?.id) {
+          await replaceProfilePhoto(existingSlot.id, selectedUri);
+          await loadProfile();
+          showToast({
+            type: 'success',
+            title: 'Photo updated',
+            message: 'Your photo was changed successfully.',
+          });
+          return;
+        }
+
+        await uploadProfilePhotos([selectedUri]);
+        await loadProfile();
+        showToast({
+          type: 'success',
+          title: 'Photo uploaded',
+          message: 'Your photo was uploaded successfully.',
+        });
       }
     } catch (error) {
       console.log('Error picking image:', error);
@@ -190,11 +253,18 @@ function ProfileViewScreen({ navigation }: ProfileViewProps) {
 
   const confirmDeletePhoto = async (): Promise<void> => {
     if (selectedPhotoIndex !== null) {
-      const newPhotos = [...profile.photos];
-      newPhotos[selectedPhotoIndex] = null;
-      
-      setProfile({ ...profile, photos: newPhotos });
-      await AsyncStorage.setItem('userPhotos', JSON.stringify(newPhotos));
+      const slot = photoSlots[selectedPhotoIndex];
+
+      if (slot?.id) {
+        await deleteProfilePhoto(slot.id);
+        await loadProfile();
+        showToast({
+          type: 'success',
+          title: 'Photo deleted',
+          message: 'Your photo was removed successfully.',
+        });
+      }
+
       setIsPhotoModalVisible(false);
     }
     setShowDeletePhotoDialog(false);
@@ -215,25 +285,29 @@ function ProfileViewScreen({ navigation }: ProfileViewProps) {
 
   const confirmLogout = async () => {
     setShowLogoutDialog(false);
-    await AsyncStorage.clear();
-    // Reload the app to trigger auth check in App.js
-    if (Platform.OS === 'web') {
-      window.location.reload();
-    } else {
-      // For native, use expo-updates to reload
-      try {
-        const Updates = require('expo-updates');
-        await Updates.reloadAsync();
-      } catch (e) {
-        // In development mode, show toast to manually restart
-        showToast({
-          type: 'info',
-          title: 'Logged Out',
-          message: 'Please close and reopen the app to complete logout.',
-          duration: 5000,
-        });
-      }
+    try {
+      await logout();
+    } catch (error) {
+      // Logout should still continue locally if backend is unreachable.
+      console.log('Remote logout failed:', error);
     }
+
+    await clearAuthSession();
+    await AsyncStorage.multiRemove([
+      'userName',
+      'userAge',
+      'userGender',
+      'userBio',
+      'userSegment',
+      'userPhotos',
+      'userLocation',
+    ]);
+
+    showToast({
+      type: 'success',
+      title: 'Logged Out',
+      message: 'You have been logged out.',
+    });
   };
 
   const handleDeleteAccount = () => {
@@ -283,7 +357,10 @@ function ProfileViewScreen({ navigation }: ProfileViewProps) {
   };
 
   const handleViewLikes = () => {
-    handleSubscribe(() => setShowLikesModal(true));
+    handleSubscribe(() => {
+      void loadReceivedLikes();
+      setShowLikesModal(true);
+    });
   };
 
   const handleViewViews = () => {
@@ -300,13 +377,13 @@ function ProfileViewScreen({ navigation }: ProfileViewProps) {
     {
       icon: 'create-outline',
       title: 'Edit Profile',
-      onPress: () => navigation.navigate('Settings', { section: 'edit' }),
+      onPress: () => navigation.navigate('EditProfile'),
     },
     {
       icon: 'shield-checkmark-outline',
-      title: 'Verify Photos',
+      title: 'Verification',
       subtitle: 'Increase your matches',
-      onPress: () => showToast({ type: 'info', title: 'Coming Soon', message: 'Photo verification feature coming soon!' }),
+      onPress: () => showToast({ type: 'info', title: 'Coming Soon', message: 'Verification feature coming soon!' }),
     },
     {
       icon: 'settings-outline',
@@ -366,7 +443,7 @@ function ProfileViewScreen({ navigation }: ProfileViewProps) {
 
           <View style={styles.statsContainer}>
             <TouchableOpacity style={styles.statItem} onPress={() => handleViewLikes()}>
-              <Text style={styles.statValue}>{MOCK_LIKES.length}</Text>
+              <Text style={styles.statValue}>{receivedLikes.length}</Text>
               <Text style={styles.statLabel}>Likes</Text>
               {isInsightsActive() ? (
                 <Text style={[styles.statCost, { color: COLORS.success }]}>Unlocked ✓</Text>
@@ -548,7 +625,7 @@ function ProfileViewScreen({ navigation }: ProfileViewProps) {
               </TouchableOpacity>
             </View>
             <FlatList
-              data={MOCK_LIKES}
+              data={receivedLikes}
               keyExtractor={(item) => item.id}
               renderItem={({ item }) => (
                 <TouchableOpacity 
@@ -563,23 +640,29 @@ function ProfileViewScreen({ navigation }: ProfileViewProps) {
                             id: item.id, 
                             name: item.name, 
                             age: item.age, 
-                            photos: [item.photo], 
-                            bio: 'Interested in you!', 
-                            segment: 'relationship' 
+                            photos: item.photos && item.photos.length > 0 ? item.photos : ['https://via.placeholder.com/400'],
+                            bio: item.bio || 'Interested in you!', 
+                            segment: item.segment || 'relationship',
+                            gender: item.gender,
+                            location: item.location,
                           } 
                         }
                       })
                     );
                   }}
                 >
-                  <Image source={{ uri: item.photo }} style={styles.likeAvatar} />
+                  <Image
+                    source={{ uri: item.photos && item.photos.length > 0 ? item.photos[0] : 'https://via.placeholder.com/400' }}
+                    style={styles.likeAvatar}
+                  />
                   <View style={styles.likeInfo}>
                     <Text style={styles.likeName}>{item.name}, {item.age}</Text>
-                    <Text style={styles.likeSubtext}>Waved at you</Text>
+                    <Text style={styles.likeSubtext}>Liked you</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
                 </TouchableOpacity>
               )}
+              ListEmptyComponent={<Text style={styles.emptyLikesText}>No likes yet.</Text>}
               showsVerticalScrollIndicator={false}
             />
           </View>
@@ -712,6 +795,7 @@ export default function ProfileScreen() {
       }}
     >
       <Stack.Screen name="ProfileView" component={ProfileViewScreen} />
+      <Stack.Screen name="EditProfile" component={EditProfileScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
     </Stack.Navigator>
   );
@@ -938,6 +1022,12 @@ const styles = StyleSheet.create({
   footerText: {
     fontSize: SIZES.body2,
     fontFamily: FONTS.regular,
+    color: COLORS.textSecondary,
+  },
+  emptyLikesText: {
+    textAlign: 'center',
+    marginTop: 16,
+    fontFamily: FONTS.medium,
     color: COLORS.textSecondary,
   },
   versionText: {
