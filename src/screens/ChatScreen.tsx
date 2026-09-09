@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,60 +10,207 @@ import {
   Platform,
   StatusBar,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StackScreenProps } from '@react-navigation/stack';
-import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
+import type { Socket } from 'socket.io-client';
+import { COLORS, FONTS, SIZES } from '../constants/theme';
 import { RootStackParamList } from '../types';
 import { useToast, ConfirmDialog } from '../components';
+import {
+  ChatMessage,
+  NewMessageEvent,
+  UserTypingEvent,
+  MessagesReadEvent,
+  PresenceEvent,
+  getMessages,
+  mapMessage,
+} from '../services/chat.service';
+import { getSocket } from '../services/socket';
+import { getStoredUserId } from '../services/auth.service';
 
-interface Message {
-  id: string;
-  text: string;
-  senderId: string;
-  timestamp: Date;
-}
-
-// Mock messages
-const MOCK_MESSAGES: Message[] = [
-  {
-    id: '1',
-    text: 'Hey! How are you?',
-    senderId: '2',
-    timestamp: new Date(Date.now() - 3600000),
-  },
-  {
-    id: '2',
-    text: "Hi! I'm doing great, thanks for asking! How about you?",
-    senderId: '1',
-    timestamp: new Date(Date.now() - 3000000),
-  },
-  {
-    id: '3',
-    text: "I'm good! I saw you like traveling. Where's your favorite place?",
-    senderId: '2',
-    timestamp: new Date(Date.now() - 2400000),
-  },
-  {
-    id: '4',
-    text: 'Oh wow, I love Bali! The beaches are amazing',
-    senderId: '1',
-    timestamp: new Date(Date.now() - 1800000),
-  },
-];
+// How long after the last keystroke we tell the other side typing has stopped.
+const TYPING_IDLE_MS = 2000;
 
 type Props = StackScreenProps<RootStackParamList, 'Chat'>;
 
 export default function ChatScreen({ navigation, route }: Props) {
   const { match } = route.params;
-  const [messages, setMessages] = useState<Message[]>(MOCK_MESSAGES);
+  const recipientId = match.id;
+
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [currentUserId, setCurrentUserId] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [inputText, setInputText] = useState('');
-  const flatListRef = useRef<FlatList<Message>>(null);
-  const currentUserId = '1'; // Mock current user ID
-  const { showToast } = useToast();
+  const [isRecipientTyping, setIsRecipientTyping] = useState(false);
+  const [isRecipientOnline, setIsRecipientOnline] = useState(false);
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [showBlockDialog, setShowBlockDialog] = useState(false);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
+
+  const flatListRef = useRef<FlatList<ChatMessage>>(null);
+  const socketRef = useRef<Socket | null>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isTypingRef = useRef(false);
+
+  const { showToast } = useToast();
+
+  const stopTyping = useCallback(() => {
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
+
+    if (!isTypingRef.current) {
+      return;
+    }
+
+    isTypingRef.current = false;
+    socketRef.current?.emit('typing', { recipientId, isTyping: false });
+  }, [recipientId]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    const handleNewMessage = (event: NewMessageEvent) => {
+      const message = mapMessage(event.message);
+
+      // The server only emits into this conversation's room, but guard anyway
+      // so a stale subscription can never leak another chat into this one.
+      if (message.senderId !== recipientId && message.receiverId !== recipientId) {
+        return;
+      }
+
+      setMessages((previous) =>
+        previous.some((existing) => existing.id === message.id)
+          ? previous
+          : [...previous, message]
+      );
+
+      // The screen is open, so anything arriving from them has been seen.
+      if (message.senderId === recipientId) {
+        socketRef.current?.emit('mark_read', { recipientId });
+      }
+    };
+
+    const handleMessagesRead = (event: MessagesReadEvent) => {
+      if (event.readBy !== recipientId) {
+        return;
+      }
+
+      setMessages((previous) =>
+        previous.map((message) =>
+          message.senderId === recipientId || message.isRead
+            ? message
+            : { ...message, isRead: true }
+        )
+      );
+    };
+
+    const handlePresence = (event: PresenceEvent) => {
+      if (event.userId !== recipientId) {
+        return;
+      }
+
+      setIsRecipientOnline(event.isOnline);
+
+      // Someone who just went offline cannot still be typing.
+      if (!event.isOnline) {
+        setIsRecipientTyping(false);
+      }
+    };
+
+    const handleUserTyping = (event: UserTypingEvent) => {
+      if (event.userId !== recipientId) {
+        return;
+      }
+
+      setIsRecipientTyping(event.isTyping);
+    };
+
+    const handleSocketError = (payload: { message?: string }) => {
+      showToast({
+        type: 'error',
+        title: 'Chat error',
+        message: payload?.message || 'Something went wrong.',
+      });
+    };
+
+    const setup = async () => {
+      try {
+        const [userId, history] = await Promise.all([getStoredUserId(), getMessages(recipientId)]);
+
+        if (!isActive) return;
+
+        setCurrentUserId(userId || '');
+        setMessages(history);
+        setLoadError('');
+      } catch (error) {
+        if (!isActive) return;
+
+        setLoadError(error instanceof Error ? error.message : 'Failed to load messages.');
+        return;
+      } finally {
+        if (isActive) {
+          setIsLoading(false);
+        }
+      }
+
+      try {
+        const socket = await getSocket();
+
+        if (!isActive) {
+          return;
+        }
+
+        socketRef.current = socket;
+
+        socket.on('new_message', handleNewMessage);
+        socket.on('user_typing', handleUserTyping);
+        socket.on('messages_read', handleMessagesRead);
+        socket.on('presence_changed', handlePresence);
+        socket.on('error', handleSocketError);
+
+        socket.emit('join_conversation', recipientId);
+        socket.emit('mark_read', { recipientId });
+      } catch (_error) {
+        if (!isActive) return;
+
+        showToast({
+          type: 'error',
+          title: 'Not connected',
+          message: 'Live messages are unavailable. Reopen the chat to retry.',
+        });
+      }
+    };
+
+    setup();
+
+    return () => {
+      isActive = false;
+
+      const socket = socketRef.current;
+
+      if (socket) {
+        socket.emit('leave_conversation', recipientId);
+        socket.off('new_message', handleNewMessage);
+        socket.off('user_typing', handleUserTyping);
+        socket.off('messages_read', handleMessagesRead);
+        socket.off('presence_changed', handlePresence);
+        socket.off('error', handleSocketError);
+        socketRef.current = null;
+      }
+
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = null;
+      }
+
+      isTypingRef.current = false;
+    };
+  }, [recipientId, showToast]);
 
   useEffect(() => {
     // Scroll to bottom when messages change
@@ -72,21 +219,59 @@ export default function ChatScreen({ navigation, route }: Props) {
     }, 100);
   }, [messages]);
 
-  const sendMessage = () => {
-    if (inputText.trim()) {
-      const newMessage = {
-        id: Date.now().toString(),
-        text: inputText.trim(),
-        senderId: currentUserId,
-        timestamp: new Date(),
-      };
+  const handleInputChange = (text: string) => {
+    setInputText(text);
 
-      setMessages([...messages, newMessage]);
-      setInputText('');
+    const socket = socketRef.current;
+    if (!socket) {
+      return;
     }
+
+    // Emit once on the first keystroke rather than on every one.
+    if (!isTypingRef.current) {
+      isTypingRef.current = true;
+      socket.emit('typing', { recipientId, isTyping: true });
+    }
+
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    typingTimeoutRef.current = setTimeout(stopTyping, TYPING_IDLE_MS);
   };
 
-  const formatTime = (date: Date): string => {
+  const sendMessage = () => {
+    const content = inputText.trim();
+
+    if (!content) {
+      return;
+    }
+
+    const socket = socketRef.current;
+
+    if (!socket) {
+      showToast({
+        type: 'error',
+        title: 'Not connected',
+        message: 'Reopen the chat and try again.',
+      });
+      return;
+    }
+
+    // The server echoes the saved message back into this conversation's room,
+    // so the sender's own copy arrives through `new_message` like any other.
+    socket.emit('send_message', { recipientId, content });
+    setInputText('');
+    stopTyping();
+  };
+
+  const formatTime = (value: string): string => {
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      return '';
+    }
+
     const hours = date.getHours();
     const minutes = date.getMinutes();
     const ampm = hours >= 12 ? 'PM' : 'AM';
@@ -122,7 +307,7 @@ export default function ChatScreen({ navigation, route }: Props) {
     navigation.goBack();
   };
 
-  const renderMessage = ({ item }) => {
+  const renderMessage = ({ item }: { item: ChatMessage }) => {
     const isOwnMessage = item.senderId === currentUserId;
 
     return (
@@ -144,11 +329,58 @@ export default function ChatScreen({ navigation, route }: Props) {
               isOwnMessage ? styles.ownMessageText : styles.otherMessageText,
             ]}
           >
-            {item.text}
+            {item.content}
           </Text>
         </View>
-        <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>
+        <View style={styles.messageMeta}>
+          <Text style={styles.messageTime}>{formatTime(item.createdAt)}</Text>
+          {isOwnMessage && (
+            <Ionicons
+              name={item.isRead ? 'checkmark-done' : 'checkmark'}
+              size={14}
+              color={item.isRead ? COLORS.primary : COLORS.textLight}
+            />
+          )}
+        </View>
       </View>
+    );
+  };
+
+  const renderMessageList = () => {
+    if (isLoading) {
+      return (
+        <View style={styles.stateContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      );
+    }
+
+    if (loadError) {
+      return (
+        <View style={styles.stateContainer}>
+          <Ionicons name="alert-circle-outline" size={40} color={COLORS.textLight} />
+          <Text style={styles.stateText}>{loadError}</Text>
+        </View>
+      );
+    }
+
+    if (messages.length === 0) {
+      return (
+        <View style={styles.stateContainer}>
+          <Text style={styles.stateText}>You matched with {match.name}. Say hello!</Text>
+        </View>
+      );
+    }
+
+    return (
+      <FlatList
+        ref={flatListRef}
+        data={messages}
+        renderItem={renderMessage}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.messagesContent}
+        showsVerticalScrollIndicator={false}
+      />
     );
   };
 
@@ -173,10 +405,16 @@ export default function ChatScreen({ navigation, route }: Props) {
           <Text style={styles.headerName}>
             {match.name}, {match.age}
           </Text>
-          <View style={styles.onlineIndicator}>
-            <View style={styles.onlineDot} />
-            <Text style={styles.onlineText}>Online</Text>
-          </View>
+          {isRecipientTyping ? (
+            <Text style={styles.typingText}>typing...</Text>
+          ) : (
+            <View style={styles.onlineIndicator}>
+              <View style={[styles.onlineDot, !isRecipientOnline && styles.offlineDot]} />
+              <Text style={[styles.onlineText, !isRecipientOnline && styles.offlineText]}>
+                {isRecipientOnline ? 'Online' : 'Offline'}
+              </Text>
+            </View>
+          )}
         </View>
 
         <TouchableOpacity
@@ -188,14 +426,7 @@ export default function ChatScreen({ navigation, route }: Props) {
       </View>
 
       {/* Messages */}
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        renderItem={renderMessage}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.messagesContent}
-        showsVerticalScrollIndicator={false}
-      />
+      {renderMessageList()}
 
       {/* Input */}
       <View style={styles.inputContainer}>
@@ -205,7 +436,7 @@ export default function ChatScreen({ navigation, route }: Props) {
             placeholder="Type a message..."
             placeholderTextColor={COLORS.textLight}
             value={inputText}
-            onChangeText={setInputText}
+            onChangeText={handleInputChange}
             multiline
             maxLength={500}
           />
@@ -260,14 +491,14 @@ export default function ChatScreen({ navigation, route }: Props) {
         animationType="fade"
         onRequestClose={() => setShowActionsMenu(false)}
       >
-        <TouchableOpacity 
-          style={styles.actionMenuOverlay} 
-          activeOpacity={1} 
+        <TouchableOpacity
+          style={styles.actionMenuOverlay}
+          activeOpacity={1}
           onPress={() => setShowActionsMenu(false)}
         >
           <View style={styles.actionMenuContainer}>
             <Text style={styles.actionMenuTitle}>Actions</Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.actionMenuItem}
               onPress={() => {
                 setShowActionsMenu(false);
@@ -277,7 +508,7 @@ export default function ChatScreen({ navigation, route }: Props) {
               <Ionicons name="flag-outline" size={22} color={COLORS.text} />
               <Text style={styles.actionMenuText}>Report User</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.actionMenuItem, styles.actionMenuDestructive]}
               onPress={() => {
                 setShowActionsMenu(false);
@@ -287,7 +518,7 @@ export default function ChatScreen({ navigation, route }: Props) {
               <Ionicons name="ban-outline" size={22} color={COLORS.primary} />
               <Text style={[styles.actionMenuText, { color: COLORS.primary }]}>Block User</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.actionMenuItem, styles.actionMenuCancel]}
               onPress={() => setShowActionsMenu(false)}
             >
@@ -346,11 +577,36 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.regular,
     color: COLORS.success,
   },
+  offlineDot: {
+    backgroundColor: COLORS.textLight,
+  },
+  offlineText: {
+    color: COLORS.textLight,
+  },
+  typingText: {
+    fontSize: SIZES.body3,
+    fontFamily: FONTS.regular,
+    color: COLORS.textLight,
+    fontStyle: 'italic',
+  },
   moreButton: {
     width: 40,
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  stateContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: SIZES.padding,
+    gap: 12,
+  },
+  stateText: {
+    fontSize: SIZES.body2,
+    fontFamily: FONTS.regular,
+    color: COLORS.textLight,
+    textAlign: 'center',
   },
   messagesContent: {
     paddingHorizontal: SIZES.padding,
@@ -392,6 +648,11 @@ const styles = StyleSheet.create({
   },
   otherMessageText: {
     color: COLORS.text,
+  },
+  messageMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   messageTime: {
     fontSize: SIZES.body3,

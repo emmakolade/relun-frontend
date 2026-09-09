@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,51 +7,103 @@ import {
   TouchableOpacity,
   Image,
   StatusBar,
-  ScrollView,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
 import { RootStackParamList, Match } from '../types';
-
-// Mock matches data
-const MOCK_MATCHES: Match[] = [
-  {
-    id: '1',
-    name: 'Sarah',
-    age: 28,
-    photo: 'https://randomuser.me/api/portraits/women/1.jpg',
-    lastMessage: 'Hey! How are you?',
-    timestamp: '2m ago',
-    unread: true,
-  },
-  {
-    id: '2',
-    name: 'Emma',
-    age: 26,
-    photo: 'https://randomuser.me/api/portraits/women/2.jpg',
-    lastMessage: 'That sounds great!',
-    timestamp: '1h ago',
-    unread: false,
-  },
-  {
-    id: '3',
-    name: 'Jessica',
-    age: 29,
-    photo: 'https://randomuser.me/api/portraits/women/3.jpg',
-    lastMessage: 'See you tomorrow',
-    timestamp: '3h ago',
-    unread: false,
-  },
-];
+import { getMatches } from '../services/profile.service';
+import { getConversations } from '../services/chat.service';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 
+const formatRelativeTime = (value: string): string => {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+
+  const minutes = Math.floor((Date.now() - date.getTime()) / 60000);
+
+  if (minutes < 1) return 'now';
+  if (minutes < 60) return `${minutes}m ago`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+
+  return date.toLocaleDateString();
+};
+
 export default function MatchesScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const [matches, setMatches] = useState<Match[]>(MOCK_MATCHES);
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState('');
   const [activeTab, setActiveTab] = useState<'matches' | 'likes'>('matches');
+
+  const loadMatches = useCallback(async () => {
+    try {
+      // Matches come from the likes graph; conversations carry the preview and
+      // unread count. A brand new match has no conversation yet.
+      const [matchedUsers, conversations] = await Promise.all([getMatches(), getConversations()]);
+
+      const conversationByUserId = new Map(
+        conversations.map((conversation) => [conversation.otherUserId, conversation])
+      );
+
+      const merged = matchedUsers.map<Match>((user) => {
+        const conversation = conversationByUserId.get(user.id);
+
+        return {
+          id: user.id,
+          name: user.name,
+          age: user.age,
+          photo: user.photos[0] || '',
+          lastMessage: conversation?.lastMessage?.content || 'You matched. Say hello!',
+          timestamp: conversation?.lastMessage
+            ? formatRelativeTime(conversation.lastMessage.createdAt)
+            : '',
+          unread: (conversation?.unreadCount ?? 0) > 0,
+        };
+      });
+
+      // Most recent conversation first. ISO timestamps sort lexicographically,
+      // and matches with no messages have '' so they fall to the bottom.
+      merged.sort((a, b) => {
+        const aTime = conversationByUserId.get(a.id)?.lastMessage?.createdAt || '';
+        const bTime = conversationByUserId.get(b.id)?.lastMessage?.createdAt || '';
+        return bTime.localeCompare(aTime);
+      });
+
+      setMatches(merged);
+      setLoadError('');
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : 'Failed to load matches.');
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, []);
+
+  // Refetch on focus so unread counts settle after leaving a chat.
+  useFocusEffect(
+    useCallback(() => {
+      loadMatches();
+    }, [loadMatches])
+  );
+
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    loadMatches();
+  };
 
   const renderMatch = ({ item }: { item: Match }) => (
     <TouchableOpacity
@@ -60,7 +112,13 @@ export default function MatchesScreen() {
       activeOpacity={0.7}
     >
       <View style={styles.matchImageContainer}>
-        <Image source={{ uri: item.photo }} style={styles.matchImage} />
+        {item.photo ? (
+          <Image source={{ uri: item.photo }} style={styles.matchImage} />
+        ) : (
+          <View style={[styles.matchImage, styles.matchImagePlaceholder]}>
+            <Ionicons name="person" size={28} color={COLORS.textLight} />
+          </View>
+        )}
         {item.unread && <View style={styles.unreadDot} />}
       </View>
 
@@ -71,7 +129,7 @@ export default function MatchesScreen() {
           </Text>
           <Text style={styles.timestamp}>{item.timestamp}</Text>
         </View>
-        <Text style={[styles.lastMessage, item.unread && styles.unreadMessage]}>
+        <Text style={[styles.lastMessage, item.unread && styles.unreadMessage]} numberOfLines={1}>
           {item.lastMessage}
         </Text>
       </View>
@@ -79,6 +137,58 @@ export default function MatchesScreen() {
       <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
     </TouchableOpacity>
   );
+
+  const renderMatchesTab = () => {
+    if (isLoading) {
+      return (
+        <View style={styles.emptyContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      );
+    }
+
+    if (loadError) {
+      return (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="alert-circle-outline" size={64} color={COLORS.textLight} />
+          <Text style={styles.emptyTitle}>Could not load matches</Text>
+          <Text style={styles.emptyText}>{loadError}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={handleRefresh} activeOpacity={0.8}>
+            <Text style={styles.retryButtonText}>Try again</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    if (matches.length === 0) {
+      return (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="chatbubbles-outline" size={80} color={COLORS.textLight} />
+          <Text style={styles.emptyTitle}>No Matches Yet</Text>
+          <Text style={styles.emptyText}>
+            Start a conversation to see your messages here!
+          </Text>
+        </View>
+      );
+    }
+
+    return (
+      <FlatList
+        data={matches}
+        renderItem={renderMatch}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor={COLORS.primary}
+          />
+        }
+      />
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -116,23 +226,7 @@ export default function MatchesScreen() {
 
       {/* Matches List */}
       {activeTab === 'matches' ? (
-        matches.length > 0 ? (
-          <FlatList
-            data={matches}
-            renderItem={renderMatch}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
-          />
-        ) : (
-          <View style={styles.emptyContainer}>
-            <Ionicons name="chatbubbles-outline" size={80} color={COLORS.textLight} />
-            <Text style={styles.emptyTitle}>No Matches Yet</Text>
-            <Text style={styles.emptyText}>
-              Start a conversation to see your messages here!
-            </Text>
-          </View>
-        )
+        renderMatchesTab()
       ) : (
         // Likes You - Premium Feature
         <View style={styles.premiumContainer}>
@@ -236,6 +330,11 @@ const styles = StyleSheet.create({
     borderRadius: 32,
     marginRight: 12,
   },
+  matchImagePlaceholder: {
+    backgroundColor: COLORS.grayLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   unreadDot: {
     position: 'absolute',
     top: 0,
@@ -293,6 +392,18 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.regular,
     color: COLORS.textSecondary,
     textAlign: 'center',
+  },
+  retryButton: {
+    marginTop: 24,
+    paddingVertical: 12,
+    paddingHorizontal: 28,
+    borderRadius: SIZES.radius,
+    backgroundColor: COLORS.primary,
+  },
+  retryButtonText: {
+    fontSize: SIZES.body1,
+    fontFamily: FONTS.semiBold,
+    color: COLORS.white,
   },
   premiumContainer: {
     flex: 1,

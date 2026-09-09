@@ -21,6 +21,7 @@ import SettingsScreen from './SettingsScreen';
 import EditProfileScreen from './EditProfileScreen';
 import { useToast, ConfirmDialog } from '../components';
 import { clearAuthSession, logout } from '../services/auth.service';
+import { unregisterPushNotifications } from '../services/notifications.service';
 import {
   deleteProfilePhoto,
   getCurrentUserProfileDetails,
@@ -285,6 +286,10 @@ function ProfileViewScreen({ navigation }: ProfileViewProps) {
 
   const confirmLogout = async () => {
     setShowLogoutDialog(false);
+
+    // Must run before the session is cleared: the request needs the token.
+    await unregisterPushNotifications();
+
     try {
       await logout();
     } catch (error) {

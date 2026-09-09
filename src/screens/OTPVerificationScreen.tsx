@@ -20,11 +20,13 @@ import { StackScreenProps } from '@react-navigation/stack';
 
 type Props = StackScreenProps<RootStackParamList, 'OTPVerification'>;
 
+const OTP_LENGTH = 6;
+
 export default function OTPVerificationScreen({ navigation, route }: Props) {
   const { method, prefilledContact, autoRequestOtp } = route.params; // 'email' or 'phone'
   const [contact, setContact] = useState<string>(prefilledContact || '');
   const [otpSent, setOtpSent] = useState(false);
-  const [otp, setOtp] = useState<string[]>(['', '', '', '', '', '']);
+  const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(''));
   const [isRequestingOtp, setIsRequestingOtp] = useState(false);
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
   const otpInputs = useRef<(TextInput | null)[]>([]);
@@ -95,14 +97,37 @@ export default function OTPVerificationScreen({ navigation, route }: Props) {
   };
 
   const handleOtpChange = (value: string, index: number) => {
+    const digits = value.replace(/\D/g, '');
+
+    // Single character: normal typing.
+    if (digits.length <= 1) {
+      const newOtp = [...otp];
+      newOtp[index] = digits;
+      setOtp(newOtp);
+
+      // Auto-focus next input
+      if (digits && index < OTP_LENGTH - 1) {
+        otpInputs.current[index + 1]?.focus();
+      }
+      return;
+    }
+
+    // Multiple characters: the code was pasted or autofilled. Spread it across
+    // the boxes. Android can append to the box's existing digit, so keep only
+    // the last OTP_LENGTH digits, and a full-length code always fills from the
+    // first box regardless of which one received it.
+    const incoming = digits.slice(-OTP_LENGTH);
+    const startIndex = incoming.length >= OTP_LENGTH ? 0 : index;
+
     const newOtp = [...otp];
-    newOtp[index] = value;
+    incoming.split('').forEach((digit, offset) => {
+      if (startIndex + offset < OTP_LENGTH) {
+        newOtp[startIndex + offset] = digit;
+      }
+    });
     setOtp(newOtp);
 
-    // Auto-focus next input
-    if (value && index < 5) {
-      otpInputs.current[index + 1]?.focus();
-    }
+    otpInputs.current[Math.min(startIndex + incoming.length, OTP_LENGTH - 1)]?.focus();
   };
 
   const handleOtpKeyPress = (e: any, index: number) => {
@@ -239,7 +264,9 @@ export default function OTPVerificationScreen({ navigation, route }: Props) {
                   onChangeText={(value) => handleOtpChange(value, index)}
                   onKeyPress={(e) => handleOtpKeyPress(e, index)}
                   keyboardType="number-pad"
-                  maxLength={1}
+                  // Not 1: a maxLength of 1 makes the native input drop every
+                  // character but the first when a code is pasted.
+                  maxLength={OTP_LENGTH}
                   selectTextOnFocus
                 />
               ))}

@@ -55,5 +55,8 @@ export const API_PATHS = {
   profileBase: '/api/profiles',
   discover: '/api/profiles/discover',
   likes: '/api/profiles/likes',
+  matches: '/api/profiles/matches',
   uploadPhotos: '/api/profiles/photos',
+  chatBase: '/api/chat',
+  pushToken: '/api/notifications/token',
 } as const;

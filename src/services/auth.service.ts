@@ -26,6 +26,7 @@ export const refreshAuthState = async () => {
 const STORAGE_KEYS = {
   accessToken: 'userToken',
   refreshToken: 'refreshToken',
+  userId: 'userId',
   authMethod: 'authMethod',
   userEmail: 'userEmail',
   userPhone: 'userPhone',
@@ -264,6 +265,7 @@ export const persistAuthSession = async (
   await AsyncStorage.multiSet([
     [STORAGE_KEYS.accessToken, authData.accessToken],
     [STORAGE_KEYS.refreshToken, authData.refreshToken],
+    [STORAGE_KEYS.userId, authData.user.id],
     [STORAGE_KEYS.authMethod, authMethod],
     [keyForContact, contact],
     [STORAGE_KEYS.hasProfile, authData.needsProfileCompletion ? 'false' : 'true'],
@@ -276,6 +278,7 @@ export const clearAuthSession = async (options?: ClearAuthSessionOptions) => {
   const keysToRemove: string[] = [
     STORAGE_KEYS.accessToken,
     STORAGE_KEYS.refreshToken,
+    STORAGE_KEYS.userId,
     STORAGE_KEYS.hasProfile,
   ];
 
@@ -294,4 +297,9 @@ export const clearAuthSession = async (options?: ClearAuthSessionOptions) => {
 
 export const getStoredAccessToken = async () => {
   return AsyncStorage.getItem(STORAGE_KEYS.accessToken);
+};
+
+// Chat needs the current user's id to tell own messages from the other side's.
+export const getStoredUserId = async () => {
+  return AsyncStorage.getItem(STORAGE_KEYS.userId);
 };

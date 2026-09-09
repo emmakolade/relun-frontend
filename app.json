@@ -6,11 +6,6 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#FF6B9D"
-    },
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -25,11 +20,13 @@
       },
       "package": "com.relun.app",
       "permissions": [
-        "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION",
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "updates": {
@@ -59,7 +56,27 @@
         }
       ],
       "expo-font",
-      "expo-web-browser"
-    ]
+      "expo-web-browser",
+      "expo-status-bar",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#FF6B9D"
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#FF5E62"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "27ec6cce-aa9c-4d4c-b24b-fc83d0badecf"
+      }
+    }
   }
 }

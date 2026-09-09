@@ -1,5 +1,8 @@
-import React, { useEffect, useState } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+// Must be first: installs the console filter before any dependency warns.
+import './src/config/suppressedWarnings';
+
+import React, { useEffect, useRef, useState } from 'react';
+import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -24,8 +27,45 @@ import ChatScreen from './src/screens/ChatScreen';
 import ProfileViewScreen from './src/screens/ProfileViewScreen';
 import GetCoinsScreen from './src/screens/GetCoinsScreen';
 import { getStoredAccessToken, subscribeToAuthState } from './src/services/auth.service';
+import {
+  NotificationData,
+  addNotificationTapListener,
+  clearBadge,
+  registerForPushNotifications,
+} from './src/services/notifications.service';
+import { getUserProfileById } from './src/services/profile.service';
 
 const Stack = createStackNavigator<RootStackParamList>();
+
+const navigationRef = createNavigationContainerRef<RootStackParamList>();
+
+// A push only carries the other user's id, so fetch enough of their profile to
+// render the chat header. Falls back to the matches list if that lookup fails.
+const openFromNotification = async (data: NotificationData) => {
+  if (!navigationRef.isReady()) {
+    return;
+  }
+
+  if (data.type === 'message' && data.userId) {
+    try {
+      const user = await getUserProfileById(data.userId);
+
+      navigationRef.navigate('Chat', {
+        match: {
+          id: user.id,
+          name: user.name,
+          age: user.age,
+          photo: user.photos[0] || '',
+        },
+      });
+      return;
+    } catch (_error) {
+      // fall through to the matches list
+    }
+  }
+
+  navigationRef.navigate('Main');
+};
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -38,6 +78,34 @@ export default function App() {
     Outfit_700Bold,
     Pacifico_400Regular,
   });
+
+  const isRegisteredForPush = useRef(false);
+
+  useEffect(() => {
+    // Taps can arrive before login resolves; navigation is guarded above.
+    const removeTapListener = addNotificationTapListener((data) => {
+      void openFromNotification(data);
+    });
+
+    return removeTapListener;
+  }, []);
+
+  useEffect(() => {
+    if (!isLoggedIn) {
+      isRegisteredForPush.current = false;
+      return;
+    }
+
+    // Register once per session. Permission prompts are idempotent, but the
+    // network call does not need repeating on every auth-state ping.
+    if (isRegisteredForPush.current) {
+      return;
+    }
+
+    isRegisteredForPush.current = true;
+    void registerForPushNotifications();
+    void clearBadge();
+  }, [isLoggedIn]);
 
   useEffect(() => {
     checkLoginStatus();
@@ -78,7 +146,7 @@ export default function App() {
 
   return (
     <ToastProvider>
-      <NavigationContainer>
+      <NavigationContainer ref={navigationRef}>
         <Stack.Navigator
           screenOptions={{
             headerShown: false,
